@@ -1,0 +1,232 @@
+import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { getAdminSettings, updateAdminSettings, updatePrices } from "@/lib/app.functions";
+import { useRequireRole, readToken } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export const Route = createFileRoute("/admin/")({
+  component: AdminDashboardPage,
+});
+
+type PriceState = {
+  gold24Price: string;
+  gold22Price: string;
+  gold21Price: string;
+  gold18Price: string;
+  silver999Price: string;
+  silver925Price: string;
+  silver900Price: string;
+  silver800Price: string;
+};
+
+const PRICE_FIELDS: [keyof PriceState, string][] = [
+  ["gold24Price", "ذهب عيار 24"],
+  ["gold22Price", "ذهب عيار 22"],
+  ["gold21Price", "ذهب عيار 21"],
+  ["gold18Price", "ذهب عيار 18"],
+  ["silver999Price", "فضة عيار 999"],
+  ["silver925Price", "فضة عيار 925"],
+  ["silver900Price", "فضة عيار 900"],
+  ["silver800Price", "فضة عيار 800"],
+];
+
+function AdminDashboardPage() {
+  useRequireRole("admin");
+  const queryClient = useQueryClient();
+  const token = readToken();
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["admin-settings"],
+    queryFn: () => getAdminSettings({ data: { token } }),
+  });
+
+  const [prices, setPrices] = useState<PriceState>({
+    gold24Price: "",
+    gold22Price: "",
+    gold21Price: "",
+    gold18Price: "",
+    silver999Price: "",
+    silver925Price: "",
+    silver900Price: "",
+    silver800Price: "",
+  });
+  const [displayCounter, setDisplayCounter] = useState("");
+  const [supportContact, setSupportContact] = useState("");
+  const [supportContactType, setSupportContactType] = useState<"phone" | "link" | "text">("phone");
+  const [savingPrices, setSavingPrices] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const initialized = settings?.ok;
+  useEffect(() => {
+    if (settings?.ok) {
+      setPrices({
+        gold24Price: String(settings.gold24Price),
+        gold22Price: String(settings.gold22Price),
+        gold21Price: String(settings.gold21Price),
+        gold18Price: String(settings.gold18Price),
+        silver999Price: String(settings.silver999Price),
+        silver925Price: String(settings.silver925Price),
+        silver900Price: String(settings.silver900Price),
+        silver800Price: String(settings.silver800Price),
+      });
+      setDisplayCounter(String(settings.displayCounter));
+      setSupportContact(settings.supportContact);
+      setSupportContactType(settings.supportContactType as "phone" | "link" | "text");
+    }
+  }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSavePrices = async () => {
+    setSavingPrices(true);
+    try {
+      const res = await updatePrices({
+        data: {
+          token,
+          prices: {
+            gold24Price: parseFloat(prices.gold24Price) || 0,
+            gold22Price: parseFloat(prices.gold22Price) || 0,
+            gold21Price: parseFloat(prices.gold21Price) || 0,
+            gold18Price: parseFloat(prices.gold18Price) || 0,
+            silver999Price: parseFloat(prices.silver999Price) || 0,
+            silver925Price: parseFloat(prices.silver925Price) || 0,
+            silver900Price: parseFloat(prices.silver900Price) || 0,
+            silver800Price: parseFloat(prices.silver800Price) || 0,
+          },
+        },
+      });
+      if (res.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+        await queryClient.invalidateQueries({ queryKey: ["public-prices"] });
+        toast.success("تم تحديث الأسعار بنجاح");
+      } else {
+        toast.error(res.message);
+      }
+    } catch {
+      toast.error("تعذر حفظ الأسعار، حاول مرة أخرى");
+    } finally {
+      setSavingPrices(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await updateAdminSettings({
+        data: {
+          token,
+          displayCounter: parseInt(displayCounter, 10) || 0,
+          supportContact,
+          supportContactType,
+        },
+      });
+      if (res.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+        await queryClient.invalidateQueries({ queryKey: ["public-prices"] });
+        toast.success("تم تحديث الإعدادات بنجاح");
+      } else {
+        toast.error(res.message);
+      }
+    } catch {
+      toast.error("تعذر حفظ الإعدادات، حاول مرة أخرى");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-xl space-y-6 px-4 pb-24 pt-6">
+      {/* Counters */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4 text-center">
+          <p className="mb-2 text-xs text-muted-foreground">التجار المشتركين (فعلي)</p>
+          <p className="num text-2xl font-bold text-foreground">{settings?.ok ? settings.realCounter : 0}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="mb-2 text-center text-xs text-muted-foreground">الرقم المعروض</p>
+          <Input
+            value={displayCounter}
+            onChange={(e) => setDisplayCounter(e.target.value)}
+            inputMode="numeric"
+            className="num h-10 border-none bg-background text-center text-xl font-bold text-primary focus-visible:ring-0"
+          />
+        </div>
+      </div>
+
+      <Button variant="secondary" className="h-11 w-full font-semibold" onClick={handleSaveSettings} disabled={savingSettings}>
+        {savingSettings ? <Loader2 className="animate-spin" /> : "حفظ الإعدادات"}
+      </Button>
+
+      <div className="h-px bg-border" />
+
+      {/* Support contact */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-foreground">تواصل الاشتراكات</h2>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          يظهر هذا الرابط أو الرقم للتاجر عند انتهاء الفترة المجانية أو الاشتراك.
+        </p>
+        <Input
+          value={supportContact}
+          onChange={(e) => setSupportContact(e.target.value)}
+          placeholder="رقم الهاتف أو الرابط"
+          className="h-13 bg-card"
+        />
+        <div className="flex gap-2">
+          {([
+            ["phone", "رقم هاتف"],
+            ["link", "رابط"],
+            ["text", "نص"],
+          ] as const).map(([type, label]) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setSupportContactType(type)}
+              className={`flex-1 rounded-lg py-2.5 text-xs font-semibold transition-colors ${
+                supportContactType === type
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Prices */}
+      <h2 className="text-lg font-bold text-foreground">أسعار المعادن</h2>
+      <div className="space-y-4">
+        {PRICE_FIELDS.map(([key, label]) => (
+          <div key={key} className="flex items-center gap-4">
+            <Label className="w-28 shrink-0 text-start text-sm font-semibold text-muted-foreground">
+              {label}
+            </Label>
+            <Input
+              value={prices[key]}
+              onChange={(e) => setPrices((s) => ({ ...s, [key]: e.target.value }))}
+              inputMode="decimal"
+              className="h-12 bg-card font-semibold"
+            />
+          </div>
+        ))}
+      </div>
+
+      <Button className="h-14 w-full text-base font-bold" onClick={handleSavePrices} disabled={savingPrices}>
+        {savingPrices ? <Loader2 className="animate-spin" /> : "حفظ الأسعار"}
+      </Button>
+    </main>
+  );
+}
