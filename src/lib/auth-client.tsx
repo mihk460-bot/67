@@ -43,6 +43,10 @@ function saveAuthState(state: AuthState) {
   }
 }
 
+export function readToken(): string {
+  return loadAuthState().token ?? "";
+}
+
 export function loginAs(state: AuthState) {
   saveAuthState(state);
 }
