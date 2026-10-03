@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bell, Loader2, Plus, Users, X } from "lucide-react";
+import { ArrowRight, Bell, Loader2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createEmployee, getMerchantTeam } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
@@ -140,7 +140,7 @@ function MerchantSettingsPage() {
                 setPending(true);
                 try {
                   const res = await createEmployee({
-                    data: { token: tokenOf(), username: employeeUsername.trim(), password: employeePassword },
+                    data: { token: readToken(), username: employeeUsername.trim(), password: employeePassword },
                   });
                   if (res.ok) {
                     await queryClient.invalidateQueries({ queryKey: ["merchant-team"] });
