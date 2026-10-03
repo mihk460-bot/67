@@ -118,6 +118,7 @@ export const getPublicPrices = createServerFn({ method: "GET" }).handler(async (
 
 const usernameSchema = z
   .string()
+  .trim()
   .min(3)
   .max(40)
   .regex(/^[a-zA-Z0-9_.-]+$/, "اسم المستخدم غير صالح");
