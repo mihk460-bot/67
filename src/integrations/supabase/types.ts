@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      merchants: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: number
+          is_active: boolean
+          parent_merchant_id: number | null
+          password_hash: string
+          session_version: number
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: never
+          is_active?: boolean
+          parent_merchant_id?: number | null
+          password_hash: string
+          session_version?: number
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: never
+          is_active?: boolean
+          parent_merchant_id?: number | null
+          password_hash?: string
+          session_version?: number
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchants_parent_merchant_id_fkey"
+            columns: ["parent_merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: number
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: never
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: never
+          title?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          key: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          value?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
