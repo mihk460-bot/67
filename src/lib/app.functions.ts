@@ -61,7 +61,7 @@ async function getSetting<T>(key: string, fallback: T): Promise<T> {
     .select("value")
     .eq("key", key)
     .maybeSingle();
-  return (data?.value as T) ?? fallback;
+  return (data?.value as unknown as T) ?? fallback;
 }
 
 async function setSetting(key: string, value: unknown): Promise<void> {
@@ -347,7 +347,7 @@ export const updatePrices = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z.object({ token: z.string(), prices: pricesSchema }).parse(data),
   )
-  .handler(async ({ data }): Promise<Ok<null> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || (payload.role !== "admin" && payload.role !== "price_manager")) {
       return fail("غير مصرح");
@@ -367,7 +367,7 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<Ok<null> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || payload.role !== "admin") return fail("غير مصرح");
     await Promise.all([
@@ -460,7 +460,7 @@ export const updateMerchant = createServerFn({ method: "POST" })
       })
       .parse(data),
   )
-  .handler(async ({ data }): Promise<Ok<null> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || payload.role !== "admin") return fail("غير مصرح");
     const { data: merchant } = await supabaseAdmin
@@ -494,7 +494,7 @@ export const updateMerchant = createServerFn({ method: "POST" })
 
 export const deleteMerchant = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ token: z.string(), id: z.number().int().positive() }).parse(data))
-  .handler(async ({ data }): Promise<Ok<null> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || payload.role !== "admin") return fail("غير مصرح");
     const { error } = await supabaseAdmin.from("merchants").delete().eq("id", data.id);
@@ -508,7 +508,7 @@ export const sendNotification = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z.object({ token: z.string(), title: z.string().min(1).max(120), body: z.string().min(1).max(1000) }).parse(data),
   )
-  .handler(async ({ data }): Promise<Ok<null> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || payload.role !== "admin") return fail("غير مصرح");
     const { error } = await supabaseAdmin
