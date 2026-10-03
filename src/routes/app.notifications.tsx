@@ -37,7 +37,7 @@ function NotificationsPage() {
       try {
         window.localStorage.setItem(
           "jewelry_last_seen_notification",
-          String(notifications[0].id),
+          String(notifications[0]?.id ?? ""),
         );
       } catch {
         /* ignore */

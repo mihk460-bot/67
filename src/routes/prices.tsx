@@ -60,9 +60,9 @@ function PriceManagerPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const loaded = prices?.ok;
+  const loaded = !!prices;
   useEffect(() => {
-    if (prices?.ok) {
+    if (prices) {
       setValues({
         gold24Price: String(prices.prices.gold24Price),
         gold22Price: String(prices.prices.gold22Price),

@@ -65,7 +65,7 @@ function LoginPage() {
         setErrorMsg(res.message);
         if (res.error === "subscription_inactive") {
           const contact = res.supportContact || supportContact;
-          const type = res.supportContactType || "phone";
+          const type = (res.supportContactType || "phone") as "phone" | "link" | "text";
           if (contact) setExpiredContact({ value: contact, type });
         }
       }

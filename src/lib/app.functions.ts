@@ -470,21 +470,27 @@ export const updateMerchant = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!merchant) return fail("التاجر غير موجود");
 
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (data.isActive !== undefined) updates.is_active = data.isActive;
+    const updates: {
+      updated_at: string;
+      is_active?: boolean;
+      password_hash?: string;
+      session_version?: number;
+      expires_at?: string;
+    } = { updated_at: new Date().toISOString() };
+    if (data.isActive !== undefined) updates["is_active"] = data.isActive;
     if (data.password) {
-      updates.password_hash = hashPassword(data.password);
-      updates.session_version = (merchant as MerchantRow).session_version + 1;
+      updates["password_hash"] = hashPassword(data.password);
+      updates["session_version"] = (merchant as MerchantRow)["session_version"] + 1;
     }
 
     if (data.expiresAt) {
       const parsed = new Date(`${data.expiresAt.slice(0, 10)}T23:59:59`);
       if (Number.isNaN(parsed.getTime())) return fail("اكتب التاريخ بالصيغة: سنة-شهر-يوم، مثال: 2026-12-31");
-      updates.expires_at = parsed.toISOString();
+      updates["expires_at"] = parsed.toISOString();
     } else if (data.subscriptionMonths) {
-      const current = new Date((merchant as MerchantRow).expires_at).getTime();
+      const current = new Date((merchant as MerchantRow)["expires_at"]).getTime();
       const base = current > Date.now() ? new Date(current) : new Date();
-      updates.expires_at = addMonths(base, data.subscriptionMonths).toISOString();
+      updates["expires_at"] = addMonths(base, data.subscriptionMonths).toISOString();
     }
 
     const { error } = await supabaseAdmin.from("merchants").update(updates).eq("id", data.id);
