@@ -29,11 +29,12 @@ function MerchantSettingsPage() {
   const [employeePassword, setEmployeePassword] = useState("");
   const [pending, setPending] = useState(false);
 
-  const { data: team, isLoading: teamLoading } = useQuery({
+  const { data: teamRaw, isLoading: teamLoading } = useQuery({
     queryKey: ["merchant-team"],
     queryFn: () => getMerchantTeam({ data: { token: readToken() } }),
     enabled: true,
   });
+  const team = teamRaw && teamRaw.ok ? teamRaw : undefined;
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 pb-16 pt-4">
