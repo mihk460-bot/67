@@ -1,4 +1,4 @@
-import type { Json } from "@supabase/supabase-js";
+import type { Json } from "@/integrations/supabase/types";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
