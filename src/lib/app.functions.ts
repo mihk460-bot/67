@@ -85,10 +85,19 @@ async function getMerchantByToken(token: string): Promise<MerchantRow | null> {
   return data as MerchantRow;
 }
 
-type Fail = { ok: false; message: string; [k: string]: unknown };
+type Fail = {
+  ok: false;
+  message: string;
+  error?: string;
+  supportContact?: string;
+  supportContactType?: string;
+};
 type Ok<T> = { ok: true } & T;
 
-function fail(message: string, extra?: Record<string, unknown>): Fail {
+function fail(
+  message: string,
+  extra?: Partial<Pick<Fail, "error" | "supportContact" | "supportContactType">>,
+): Fail {
   return { ok: false, message, ...extra };
 }
 
