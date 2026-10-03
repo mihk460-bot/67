@@ -124,6 +124,9 @@ function LoginPage() {
                 value={regUsername}
                 onChange={(e) => setRegUsername(e.target.value)}
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </div>
             <div className="space-y-2">
@@ -176,6 +179,9 @@ function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </div>
             <div className="space-y-2">

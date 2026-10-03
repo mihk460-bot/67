@@ -118,6 +118,7 @@ export const getPublicPrices = createServerFn({ method: "GET" }).handler(async (
 
 const usernameSchema = z
   .string()
+  .trim()
   .min(3)
   .max(40)
   .regex(/^[a-zA-Z0-9_.-]+$/, "اسم المستخدم غير صالح");
@@ -127,7 +128,7 @@ export const merchantRegister = createServerFn({ method: "POST" })
     z.object({ username: usernameSchema, password: z.string().min(6).max(128) }).parse(data),
   )
   .handler(async ({ data }): Promise<Ok<{ token: string; merchantId: number }> | Fail> => {
-    const username = data.username.toLowerCase();
+    const username = data.username.trim().toLowerCase();
     const { data: existing } = await supabaseAdmin
       .from("merchants")
       .select("id")
@@ -152,13 +153,18 @@ export const merchantLogin = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<Ok<{ token: string; merchantId: number }> | Fail> => {
-      const username = data.username.toLowerCase();
+      const username = data.username.trim().toLowerCase();
       const { data: merchant } = await supabaseAdmin
         .from("merchants")
         .select("*")
         .eq("username", username)
         .maybeSingle();
-      if (!merchant || !verifyPassword(data.password, merchant.password_hash)) {
+      const passwordOk =
+        !!merchant &&
+        (verifyPassword(data.password, merchant.password_hash) ||
+          (data.password.trim() !== data.password &&
+            verifyPassword(data.password.trim(), merchant.password_hash)));
+      if (!merchant || !passwordOk) {
         return fail("بيانات الدخول غير صحيحة");
       }
       const active = await isMerchantActive(merchant as MerchantRow);
@@ -252,7 +258,7 @@ export const createEmployee = createServerFn({ method: "POST" })
         .eq("parent_merchant_id", merchant.id);
       if (countError) return fail("تعذر إنشاء حساب الموظف");
       if ((count ?? 0) >= 2) return fail("تم الوصول للحد الأقصى (حسابان للموظفين)");
-      const username = data.username.toLowerCase();
+      const username = data.username.trim().toLowerCase();
       const { data: existing } = await supabaseAdmin
         .from("merchants")
         .select("id")
@@ -282,15 +288,16 @@ export const adminLogin = createServerFn({ method: "POST" })
     async ({
       data,
     }): Promise<Ok<{ token: string; role: "admin" | "price_manager" }> | Fail> => {
-      const adminPassword = process.env["ADMIN_PASSWORD"];
-      const priceManagerPassword = process.env["PRICE_MANAGER_PASSWORD"];
+      const adminPassword = process.env["ADMIN_PASSWORD"]?.trim();
+      const priceManagerPassword = process.env["PRICE_MANAGER_PASSWORD"]?.trim();
+      const input = data.password.trim();
       if (!adminPassword && !priceManagerPassword) {
         return fail("كلمات مرور الإدارة غير مهيأة بعد");
       }
-      if (adminPassword && data.password === adminPassword) {
+      if (adminPassword && input === adminPassword) {
         return { ok: true, token: signToken({ sub: "admin", role: "admin" }), role: "admin" };
       }
-      if (priceManagerPassword && data.password === priceManagerPassword) {
+      if (priceManagerPassword && input === priceManagerPassword) {
         return {
           ok: true,
           token: signToken({ sub: "price-manager", role: "price_manager" }),
@@ -428,7 +435,7 @@ export const createMerchant = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Ok<{ id: number }> | Fail> => {
     const payload = verifyToken(data.token);
     if (!payload || payload.role !== "admin") return fail("غير مصرح");
-    const username = data.username.toLowerCase();
+    const username = data.username.trim().toLowerCase();
     const { data: existing } = await supabaseAdmin
       .from("merchants")
       .select("id")
