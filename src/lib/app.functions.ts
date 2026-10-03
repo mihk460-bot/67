@@ -190,7 +190,7 @@ export const merchantLogin = createServerFn({ method: "POST" })
 
 export const getMerchantMe = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ token: z.string() }).parse(data))
-  .handler(async ({ data }): Promise<Ok<{ username: string; subscriptionActive: boolean; expiresAt: string }> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{ username: string; subscriptionActive: boolean; expiresAt: string; isEmployee: boolean }> | Fail> => {
     const merchant = await getMerchantByToken(data.token);
     if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
     return {
@@ -198,6 +198,7 @@ export const getMerchantMe = createServerFn({ method: "POST" })
       username: merchant.username,
       subscriptionActive: await isMerchantActive(merchant),
       expiresAt: merchant.expires_at,
+      isEmployee: merchant.parent_merchant_id !== null,
     };
   });
 
