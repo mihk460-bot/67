@@ -167,15 +167,3 @@ function MerchantSettingsPage() {
   );
 }
 
-function tokenOf(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    const raw = window.localStorage.getItem("jewelry_auth_state");
-    return raw ? (JSON.parse(raw).token ?? "") : "";
-  } catch {
-    return "";
-  }
-}
-
-// re-export to satisfy lint about unused import X
-void X;
