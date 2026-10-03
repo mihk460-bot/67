@@ -10,33 +10,157 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminLoginRouteImport } from './routes/admin-login'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as PricesRouteImport } from './routes/prices'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminMerchantsRouteImport } from './routes/admin.merchants'
+import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin-login',
+  path: '/admin-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PricesRoute = PricesRouteImport.update({
+  id: '/prices',
+  path: '/prices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMerchantsRoute = AdminMerchantsRouteImport.update({
+  id: '/merchants',
+  path: '/merchants',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNotificationsRoute = AdminNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin-login': typeof AdminLoginRoute
+  '/app': typeof AppRouteWithChildren
+  '/prices': typeof PricesRoute
+  '/admin/merchants': typeof AdminMerchantsRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin-login': typeof AdminLoginRoute
+  '/prices': typeof PricesRoute
+  '/admin/merchants': typeof AdminMerchantsRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/admin': typeof AdminIndexRoute
+  '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin-login': typeof AdminLoginRoute
+  '/app': typeof AppRouteWithChildren
+  '/prices': typeof PricesRoute
+  '/admin/merchants': typeof AdminMerchantsRoute
+  '/admin/notifications': typeof AdminNotificationsRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/admin-login'
+    | '/app'
+    | '/prices'
+    | '/admin/merchants'
+    | '/admin/notifications'
+    | '/app/notifications'
+    | '/app/settings'
+    | '/admin/'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin-login'
+    | '/prices'
+    | '/admin/merchants'
+    | '/admin/notifications'
+    | '/app/notifications'
+    | '/app/settings'
+    | '/admin'
+    | '/app'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/admin-login'
+    | '/app'
+    | '/prices'
+    | '/admin/merchants'
+    | '/admin/notifications'
+    | '/app/notifications'
+    | '/app/settings'
+    | '/admin/'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
+  AppRoute: typeof AppRouteWithChildren
+  PricesRoute: typeof PricesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +172,113 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin-login': {
+      id: '/admin-login'
+      path: '/admin-login'
+      fullPath: '/admin-login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prices': {
+      id: '/prices'
+      path: '/prices'
+      fullPath: '/prices'
+      preLoaderRoute: typeof PricesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/merchants': {
+      id: '/admin/merchants'
+      path: '/merchants'
+      fullPath: '/admin/merchants'
+      preLoaderRoute: typeof AdminMerchantsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/notifications': {
+      id: '/admin/notifications'
+      path: '/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AdminNotificationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminMerchantsRoute: typeof AdminMerchantsRoute
+  AdminNotificationsRoute: typeof AdminNotificationsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminMerchantsRoute: AdminMerchantsRoute,
+  AdminNotificationsRoute: AdminNotificationsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface AppRouteChildren {
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
+  AppRoute: AppRouteWithChildren,
+  PricesRoute: PricesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
