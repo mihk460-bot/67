@@ -1,9 +1,9 @@
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, LogOut, Settings } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
-import { getPublicPrices } from "@/lib/app.functions";
-import { logout, useRequireRole } from "@/lib/auth-client";
+import { getMerchantMe, getPublicPrices } from "@/lib/app.functions";
+import { logout, readToken, useRequireRole } from "@/lib/auth-client";
 import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/app")({
@@ -18,6 +18,13 @@ function MerchantLayout() {
     queryFn: () => getPublicPrices(),
     refetchInterval: 60_000,
   });
+
+  const { data: me } = useQuery({
+    queryKey: ["merchant-me"],
+    queryFn: () => getMerchantMe({ data: { token: readToken() } }),
+    enabled: !!state?.token,
+  });
+  const isOwner = !!me && me.ok && !me.isEmployee;
 
   if (!state?.token) return null;
 
@@ -37,6 +44,11 @@ function MerchantLayout() {
                   {prices.displayCounter}
                 </span>
               </div>
+            ) : null}
+            {isOwner ? (
+              <Link to="/app/settings" className="p-2 text-foreground" aria-label="الإعدادات">
+                <Settings className="size-5" />
+              </Link>
             ) : null}
             <Link to="/app/notifications" className="p-2 text-foreground" aria-label="الإشعارات">
               <Bell className="size-5" />

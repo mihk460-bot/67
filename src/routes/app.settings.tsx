@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bell, Loader2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { createEmployee, getMerchantTeam } from "@/lib/app.functions";
+import { createEmployee, getMerchantMe, getMerchantTeam } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,15 @@ function MerchantSettingsPage() {
     enabled: true,
   });
   const team = teamRaw && teamRaw.ok ? teamRaw : undefined;
+  const { data: me } = useQuery({
+    queryKey: ["merchant-me"],
+    queryFn: () => getMerchantMe({ data: { token: readToken() } }),
+  });
+  const isEmployee = !!me && me.ok && me.isEmployee;
+  useEffect(() => {
+    if (isEmployee) navigate({ to: "/app", replace: true });
+  }, [isEmployee, navigate]);
+  if (isEmployee) return null;
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 pb-16 pt-4">
