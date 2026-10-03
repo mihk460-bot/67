@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bell, Loader2, Plus, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { createEmployee, getMerchantTeam } from "@/lib/app.functions";
-import { useRequireRole } from "@/lib/auth-client";
+import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ function MerchantSettingsPage() {
 
   const { data: team, isLoading: teamLoading } = useQuery({
     queryKey: ["merchant-team"],
-    queryFn: () => getMerchantTeam({ data: { token: tokenOf() } }),
+    queryFn: () => getMerchantTeam({ data: { token: readToken() } }),
     enabled: true,
   });
 
