@@ -65,7 +65,7 @@ async function getSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 async function setSetting(key: string, value: unknown): Promise<void> {
-  await supabaseAdmin.from("settings").upsert({ key, value });
+  await supabaseAdmin.from("settings").upsert({ key, value: value as Json });
 }
 
 async function isMerchantActive(m: MerchantRow): Promise<boolean> {

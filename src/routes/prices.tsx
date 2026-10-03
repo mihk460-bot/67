@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicPrices, updatePrices } from "@/lib/app.functions";
-import { logout, useRequireRole } from "@/lib/auth-client";
+import { logout, readToken, useRequireRole } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
