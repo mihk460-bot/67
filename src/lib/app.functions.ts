@@ -104,6 +104,17 @@ function fail(
 
 // ---------- public prices ----------
 
+export type SupportContact = { label: string; type: "phone" | "whatsapp" | "link"; value: string };
+const supportContactSchema = z.object({
+  label: z.string().trim().min(1).max(60),
+  type: z.enum(["phone", "whatsapp", "link"]),
+  value: z.string().trim().min(1).max(300),
+});
+async function getSupportContacts(): Promise<SupportContact[]> {
+  const list = await getSetting<SupportContact[]>("supportContacts", []);
+  return Array.isArray(list) ? list : [];
+}
+
 export const getPublicPrices = createServerFn({ method: "GET" }).handler(async () => {
   const [prices, displayCounter, supportContact, supportContactType] = await Promise.all([
     getSetting<Prices>("prices", DEFAULT_PRICES),
@@ -111,7 +122,8 @@ export const getPublicPrices = createServerFn({ method: "GET" }).handler(async (
     getSetting<string>("supportContact", ""),
     getSetting<string>("supportContactType", "phone"),
   ]);
-  return { prices, displayCounter, supportContact, supportContactType };
+  const supportContacts = await getSupportContacts();
+  return { prices, displayCounter, supportContact, supportContactType, supportContacts };
 });
 
 // ---------- merchant auth ----------
@@ -323,6 +335,7 @@ export const getAdminSettings = createServerFn({ method: "POST" })
             displayCounter: number;
             supportContact: string;
             supportContactType: string;
+            supportContacts: SupportContact[];
           }
         >
       | Fail
@@ -348,6 +361,7 @@ export const getAdminSettings = createServerFn({ method: "POST" })
         displayCounter,
         supportContact,
         supportContactType,
+        supportContacts: await getSupportContacts(),
       };
     },
   );
@@ -373,6 +387,7 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
         displayCounter: z.number().int().min(0),
         supportContact: z.string().max(300),
         supportContactType: z.enum(["phone", "link", "text"]),
+        supportContacts: z.array(supportContactSchema).max(10).optional(),
       })
       .parse(data),
   )
@@ -383,6 +398,7 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
       setSetting("displayCounter", data.displayCounter),
       setSetting("supportContact", data.supportContact),
       setSetting("supportContactType", data.supportContactType),
+      ...(data.supportContacts ? [setSetting("supportContacts", data.supportContacts)] : []),
     ]);
     return { ok: true };
   });
