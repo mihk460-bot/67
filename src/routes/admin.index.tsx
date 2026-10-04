@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAdminSettings, updateAdminSettings, updatePrices } from "@/lib/app.functions";
+import { type SupportContact, getAdminSettings, updateAdminSettings, updatePrices } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ function AdminDashboardPage() {
   const [displayCounter, setDisplayCounter] = useState("");
   const [supportContact, setSupportContact] = useState("");
   const [supportContactType, setSupportContactType] = useState<"phone" | "link" | "text">("phone");
+  const [contacts, setContacts] = useState<SupportContact[]>([]);
   const [savingPrices, setSavingPrices] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -77,6 +78,7 @@ function AdminDashboardPage() {
       setDisplayCounter(String(settings.displayCounter));
       setSupportContact(settings.supportContact);
       setSupportContactType(settings.supportContactType as "phone" | "link" | "text");
+      setContacts(settings.supportContacts ?? []);
     }
   }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -121,6 +123,9 @@ function AdminDashboardPage() {
           displayCounter: parseInt(displayCounter, 10) || 0,
           supportContact,
           supportContactType,
+          supportContacts: contacts
+            .map((c) => ({ ...c, label: c.label.trim(), value: c.value.trim() }))
+            .filter((c) => c.label && c.value),
         },
       });
       if (res.ok) {
@@ -202,6 +207,73 @@ function AdminDashboardPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="h-px bg-border" />
+
+      {/* Support contacts for merchants */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold text-foreground">أرقام وروابط الدعم</h2>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          تظهر للتاجر عند الضغط على زر «الدعم» داخل التطبيق.
+        </p>
+        {contacts.map((c, i) => (
+          <div key={i} className="space-y-2 rounded-xl border border-border bg-card p-3">
+            <div className="flex gap-2">
+              <Input
+                value={c.label}
+                onChange={(e) => setContacts((l) => l.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                placeholder="الاسم (مثال: واتساب الدعم)"
+                className="bg-background"
+              />
+              <button
+                type="button"
+                aria-label="حذف"
+                onClick={() => setContacts((l) => l.filter((_, j) => j !== i))}
+                className="px-2 text-destructive"
+              >
+                <Trash2 className="size-5" />
+              </button>
+            </div>
+            <Input
+              value={c.value}
+              onChange={(e) => setContacts((l) => l.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+              placeholder={c.type === "link" ? "https://..." : "رقم الهاتف مع رمز الدولة"}
+              dir="ltr"
+              className="bg-background"
+            />
+            <div className="flex gap-2">
+              {([
+                ["phone", "اتصال"],
+                ["whatsapp", "واتساب"],
+                ["link", "رابط"],
+              ] as const).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setContacts((l) => l.map((x, j) => (j === i ? { ...x, type } : x)))}
+                  className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
+                    c.type === type ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {contacts.length < 10 ? (
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={() => setContacts((l) => [...l, { label: "", type: "whatsapp", value: "" }])}
+          >
+            <Plus className="size-4" /> إضافة رقم أو رابط
+          </Button>
+        ) : null}
+        <Button className="h-11 w-full font-semibold" onClick={handleSaveSettings} disabled={savingSettings}>
+          {savingSettings ? <Loader2 className="animate-spin" /> : "حفظ أرقام الدعم"}
+        </Button>
       </div>
 
       <div className="h-px bg-border" />

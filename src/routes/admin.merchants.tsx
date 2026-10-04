@@ -86,12 +86,18 @@ function AdminMerchantsPage() {
   const handleSave = async () => {
     let expiresAt: string | undefined;
     if (customExpiryDate.trim()) {
-      const dateValue = customExpiryDate.trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-        toast.error("اكتب التاريخ بالصيغة: سنة-شهر-يوم، مثال: 2026-12-31");
+      const raw = customExpiryDate
+        .trim()
+        .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+        .replace(/[/.\s]+/g, "-");
+      const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      const y = m ? +m[1]! : 0, mo = m ? +m[2]! : 0, d = m ? +m[3]! : 0;
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (!m || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) {
+        toast.error("اكتب التاريخ بالصيغة: سنة-شهر-يوم، مثال: 2026-10-4");
         return;
       }
-      expiresAt = dateValue;
+      expiresAt = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
 
     setPending(true);

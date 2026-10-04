@@ -1,6 +1,8 @@
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, LogOut, Settings } from "lucide-react";
+import { Bell, Headset, Link2, LogOut, MessageCircle, Phone, Settings } from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { getMerchantMe, getPublicPrices } from "@/lib/app.functions";
 import { logout, readToken, useRequireRole } from "@/lib/auth-client";
@@ -24,6 +26,8 @@ function MerchantLayout() {
     queryFn: () => getMerchantMe({ data: { token: readToken() } }),
     enabled: !!state?.token,
   });
+  const [supportOpen, setSupportOpen] = useState(false);
+  const contacts = prices?.supportContacts ?? [];
   const isOwner = !!me && me.ok && !me.isEmployee;
 
   if (!state?.token) return null;
@@ -50,6 +54,16 @@ function MerchantLayout() {
                 <Settings className="size-5" />
               </Link>
             ) : null}
+            {contacts.length > 0 ? (
+              <button
+                type="button"
+                className="p-2 text-primary"
+                aria-label="الدعم"
+                onClick={() => setSupportOpen(true)}
+              >
+                <Headset className="size-5" />
+              </button>
+            ) : null}
             <Link to="/app/notifications" className="p-2 text-foreground" aria-label="الإشعارات">
               <Bell className="size-5" />
             </Link>
@@ -68,6 +82,42 @@ function MerchantLayout() {
         </div>
       </header>
       <Outlet />
+      <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
+        <DialogContent className="bg-background sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-start text-lg font-bold text-foreground">تواصل مع الدعم</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2.5">
+            {contacts.map((c, i) => {
+              const digits = c.value.replace(/[^\d+]/g, "");
+              const href =
+                c.type === "phone"
+                  ? `tel:${digits}`
+                  : c.type === "whatsapp"
+                    ? `https://wa.me/${digits.replace(/^\+/, "")}`
+                    : /^https?:\/\//i.test(c.value)
+                      ? c.value
+                      : `https://${c.value}`;
+              const Icon = c.type === "phone" ? Phone : c.type === "whatsapp" ? MessageCircle : Link2;
+              return (
+                <a
+                  key={i}
+                  href={href}
+                  target={c.type === "phone" ? undefined : "_blank"}
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+                >
+                  <Icon className="size-5 text-primary" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">{c.label}</p>
+                    <p className="text-xs text-muted-foreground" dir="ltr">{c.value}</p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
