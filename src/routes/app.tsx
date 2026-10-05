@@ -1,3 +1,4 @@
+import { contactHref } from "@/lib/support";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Headset, Link2, LogOut, MessageCircle, Phone, Settings } from "lucide-react";
@@ -89,15 +90,7 @@ function MerchantLayout() {
           </DialogHeader>
           <div className="space-y-2.5">
             {contacts.map((c, i) => {
-              const digits = c.value.replace(/[^\d+]/g, "");
-              const href =
-                c.type === "phone"
-                  ? `tel:${digits}`
-                  : c.type === "whatsapp"
-                    ? `https://wa.me/${digits.replace(/^\+/, "")}`
-                    : /^https?:\/\//i.test(c.value)
-                      ? c.value
-                      : `https://${c.value}`;
+              const href = contactHref(c.type, c.value);
               const Icon = c.type === "phone" ? Phone : c.type === "whatsapp" ? MessageCircle : Link2;
               return (
                 <a

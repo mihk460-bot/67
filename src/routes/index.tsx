@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2, Phone, Users } from "lucide-react";
 import { toast } from "sonner";
-import { merchantLogin, merchantRegister, getPublicPrices } from "@/lib/app.functions";
+import { merchantLogin, merchantRegister, getPublicPrices, type SupportContact } from "@/lib/app.functions";
+import { contactHref } from "@/lib/support";
 import { loginAs, loadAuthState, routeForRole } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,13 +39,18 @@ function LoginPage() {
     type: "phone" | "link" | "text";
   } | null>(null);
   const [supportContact, setSupportContact] = useState<string | null>(null);
+  const [allContacts, setAllContacts] = useState<SupportContact[]>([]);
+  const [supportList, setSupportList] = useState<SupportContact[]>([]);
 
   useEffect(() => {
     const state = loadAuthState();
     if (state.token && state.role) {
       navigate({ to: routeForRole(state.role), replace: true });
     }
-    getPublicPrices().then((d) => setSupportContact(d.supportContact || null));
+    getPublicPrices().then((d) => {
+      setSupportContact(d.supportContact || null);
+      setAllContacts(d.supportContacts ?? []);
+    });
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -55,6 +61,7 @@ function LoginPage() {
     }
     setErrorMsg("");
     setExpiredContact(null);
+    setSupportList([]);
     setPending(true);
     try {
       const res = await merchantLogin({ data: { username: username.trim(), password } });
@@ -64,9 +71,10 @@ function LoginPage() {
       } else {
         setErrorMsg(res.message);
         if (res.error === "subscription_inactive") {
+          setSupportList(allContacts);
           const contact = res.supportContact || supportContact;
           const type = (res.supportContactType || "phone") as "phone" | "link" | "text";
-          if (contact) setExpiredContact({ value: contact, type });
+          if (contact && allContacts.length === 0) setExpiredContact({ value: contact, type });
         }
       }
     } catch {
@@ -200,11 +208,24 @@ function LoginPage() {
             {errorMsg ? (
               <div className="space-y-2.5">
                 <p className="text-center text-sm text-destructive">{errorMsg}</p>
-                {expiredContact ? (
+                {expiredContact || supportList.length > 0 ? (
                   <div className="space-y-2.5 rounded-xl border border-border bg-card p-4">
                     <p className="text-center text-sm font-medium text-muted-foreground">
                       للتجديد تواصل مع الإدارة
                     </p>
+                    {supportList.map((c, i) => (
+                      <a
+                        key={i}
+                        href={contactHref(c.type, c.value)}
+                        target={c.type === "phone" ? undefined : "_blank"}
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+                      >
+                        <span>{c.label}</span>
+                        <span dir="ltr">{c.value}</span>
+                      </a>
+                    ))}
+                    {expiredContact ? (<>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -243,6 +264,8 @@ function LoginPage() {
                     <p className="select-text text-center font-semibold text-foreground">
                       {expiredContact.value}
                     </p>
+                    </>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
