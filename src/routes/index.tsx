@@ -200,11 +200,24 @@ function LoginPage() {
             {errorMsg ? (
               <div className="space-y-2.5">
                 <p className="text-center text-sm text-destructive">{errorMsg}</p>
-                {expiredContact ? (
+                {expiredContact || supportList.length > 0 ? (
                   <div className="space-y-2.5 rounded-xl border border-border bg-card p-4">
                     <p className="text-center text-sm font-medium text-muted-foreground">
                       للتجديد تواصل مع الإدارة
                     </p>
+                    {supportList.map((c, i) => (
+                      <a
+                        key={i}
+                        href={contactHref(c.type, c.value)}
+                        target={c.type === "phone" ? undefined : "_blank"}
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
+                      >
+                        <span>{c.label}</span>
+                        <span dir="ltr">{c.value}</span>
+                      </a>
+                    ))}
+                    {expiredContact ? (
                     <div className="flex gap-2">
                       <Button
                         type="button"
