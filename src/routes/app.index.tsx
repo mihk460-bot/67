@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { getPublicPrices } from "@/lib/app.functions";
 import { useRequireRole } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -278,6 +279,51 @@ function CalculatorPage() {
             <span className="num text-2xl font-bold text-primary">{fmt(calc.finalTotal)}</span>
           </div>
         </div>
+      </div>
+
+      <div className="flex gap-2.5">
+        <Button
+          type="button"
+          className="h-12 flex-1 gap-2 font-semibold"
+          onClick={async () => {
+            const lines = [
+              `${metal === "gold" ? "ذهب عيار " + karat : "فضة " + silverKarat}`,
+              `الوزن: ${weight || 0} جرام`,
+              `سعر الجرام: ${fmt(parseFloat(manualPrice) || 0)}`,
+              calc.craftCost ? `المصنعية: ${fmt(calc.craftCost)}` : "",
+              calc.wastageCost ? `الخسارة: ${fmt(calc.wastageCost)}` : "",
+              calc.fees ? `رسوم إضافية: ${fmt(calc.fees)}` : "",
+              `الإجمالي: ${fmt(calc.finalTotal)}`,
+            ].filter(Boolean);
+            const text = lines.join("\n");
+            try {
+              if (navigator.share) {
+                await navigator.share({ text });
+              } else {
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+              }
+            } catch {
+              await navigator.clipboard?.writeText(text);
+              toast.success("تم نسخ العرض");
+            }
+          }}
+        >
+          <Share2 className="size-4" /> مشاركة العرض
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-12 gap-2 font-semibold"
+          onClick={() => {
+            setWeight("");
+            setCraftsmanship("");
+            setWastage("");
+            setProfitPercent("");
+            setAdditionalFees("");
+          }}
+        >
+          <RotateCcw className="size-4" /> تصفير
+        </Button>
       </div>
     </main>
   );
