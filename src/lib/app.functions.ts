@@ -226,12 +226,14 @@ export const getMerchantTeam = createServerFn({ method: "POST" })
           total: number;
           limit: number;
           canManage: boolean;
-          employees: { id: number; username: string; isExpired: boolean }[];
+          ownerActive: boolean;
+          employees: { id: number; username: string; isExpired: boolean; isDisabled: boolean }[];
         }>
       | Fail
     > => {
       const merchant = await getMerchantByToken(data.token);
       if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
+      const ownerActive = await isMerchantActive(merchant);
       const { data: employees } = await supabaseAdmin
         .from("merchants")
         .select("id, username, is_active, expires_at")
@@ -240,17 +242,58 @@ export const getMerchantTeam = createServerFn({ method: "POST" })
       const list = (employees ?? []).map((e: { id: number; username: string; is_active: boolean; expires_at: string }) => ({
         id: e.id,
         username: e.username,
-        isExpired: !e.is_active || new Date(e.expires_at).getTime() <= Date.now(),
+        isDisabled: !e.is_active,
+        isExpired: !ownerActive || !e.is_active || new Date(e.expires_at).getTime() <= Date.now(),
       }));
       return {
         ok: true,
         total: list.length,
         limit: 2,
         canManage: merchant.parent_merchant_id === null,
+        ownerActive,
         employees: list,
       };
     },
   );
+
+async function getOwnedEmployee(token: string, employeeId: number) {
+  const merchant = await getMerchantByToken(token);
+  if (!merchant) return { error: fail("انتهت الجلسة", { error: "invalid_session" }) };
+  if (merchant.parent_merchant_id !== null) return { error: fail("غير مسموح للموظفين") };
+  const { data: emp } = await supabaseAdmin
+    .from("merchants")
+    .select("id, session_version")
+    .eq("id", employeeId)
+    .eq("parent_merchant_id", merchant.id)
+    .maybeSingle();
+  if (!emp) return { error: fail("الموظف غير موجود") };
+  return { emp };
+}
+
+export const deleteEmployee = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ token: z.string(), employeeId: z.number().int() }).parse(data))
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
+    const r = await getOwnedEmployee(data.token, data.employeeId);
+    if (r.error) return r.error;
+    const { error } = await supabaseAdmin.from("merchants").delete().eq("id", r.emp.id);
+    if (error) return fail("تعذر حذف الموظف");
+    return { ok: true };
+  });
+
+export const setEmployeeActive = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z.object({ token: z.string(), employeeId: z.number().int(), active: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
+    const r = await getOwnedEmployee(data.token, data.employeeId);
+    if (r.error) return r.error;
+    const { error } = await supabaseAdmin
+      .from("merchants")
+      .update({ is_active: data.active, session_version: r.emp.session_version + 1, updated_at: new Date().toISOString() })
+      .eq("id", r.emp.id);
+    if (error) return fail("تعذر تحديث حالة الموظف");
+    return { ok: true };
+  });
 
 export const createEmployee = createServerFn({ method: "POST" })
   .inputValidator((data) =>
