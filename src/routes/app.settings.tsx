@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Bell, Loader2, Plus, Users } from "lucide-react";
+import { ArrowRight, Bell, Loader2, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { createEmployee, getMerchantMe, getMerchantTeam } from "@/lib/app.functions";
+import { createEmployee, deleteEmployee, getMerchantMe, getMerchantTeam, setEmployeeActive } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,15 +90,59 @@ function MerchantSettingsPage() {
 
           {teamLoading ? <Loader2 className="size-5 animate-spin text-primary" /> : null}
 
+          {team && !team.ownerActive ? (
+            <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
+              اشتراكك منتهي، لذلك حسابات الموظفين متوقفة حتى التجديد
+            </p>
+          ) : null}
+
           {team?.employees.map((employee) => (
             <div
               key={employee.id}
-              className="flex items-center justify-between rounded-xl bg-background p-3"
+              className="flex items-center gap-2 rounded-xl bg-background p-3"
             >
-              <span className="font-medium text-foreground">{employee.username}</span>
-              <span className={`text-xs ${employee.isExpired ? "text-destructive" : "text-muted-foreground"}`}>
-                {employee.isExpired ? "منتهي" : "نشط"}
-              </span>
+              <div className="flex-1">
+                <p className="font-medium text-foreground">{employee.username}</p>
+                <p className={`text-xs ${employee.isExpired ? "text-destructive" : "text-primary"}`}>
+                  {employee.isDisabled ? "معطّل" : employee.isExpired ? "متوقف" : "فعّال"}
+                </p>
+              </div>
+              {team.canManage ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      const res = await setEmployeeActive({
+                        data: { token: readToken(), employeeId: employee.id, active: employee.isDisabled },
+                      });
+                      if (res.ok) {
+                        await queryClient.invalidateQueries({ queryKey: ["merchant-team"] });
+                        toast.success(employee.isDisabled ? "تم تفعيل الموظف" : "تم تعطيل الموظف");
+                      } else toast.error(res.message);
+                    }}
+                  >
+                    {employee.isDisabled ? "تفعيل" : "تعطيل"}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    aria-label="حذف"
+                    onClick={async () => {
+                      if (!confirm(`حذف حساب ${employee.username}؟`)) return;
+                      const res = await deleteEmployee({
+                        data: { token: readToken(), employeeId: employee.id },
+                      });
+                      if (res.ok) {
+                        await queryClient.invalidateQueries({ queryKey: ["merchant-team"] });
+                        toast.success("تم حذف الموظف");
+                      } else toast.error(res.message);
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </>
+              ) : null}
             </div>
           ))}
 
