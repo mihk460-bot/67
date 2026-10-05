@@ -1,3 +1,4 @@
+import { contactHref } from "@/lib/support";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Headset, Link2, LogOut, MessageCircle, Phone, Settings } from "lucide-react";
