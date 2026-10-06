@@ -3,37 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { type SupportContact, getAdminSettings, updateAdminSettings, updatePrices } from "@/lib/app.functions";
+import { type SupportContact, getAdminSettings, updateAdminSettings } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PriceEditor } from "@/components/PriceEditor";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboardPage,
 });
-
-type PriceState = {
-  gold24Price: string;
-  gold22Price: string;
-  gold21Price: string;
-  gold18Price: string;
-  silver999Price: string;
-  silver925Price: string;
-  silver900Price: string;
-  silver800Price: string;
-};
-
-const PRICE_FIELDS: [keyof PriceState, string][] = [
-  ["gold24Price", "ذهب عيار 24"],
-  ["gold22Price", "ذهب عيار 22"],
-  ["gold21Price", "ذهب عيار 21"],
-  ["gold18Price", "ذهب عيار 18"],
-  ["silver999Price", "فضة عيار 999"],
-  ["silver925Price", "فضة عيار 925"],
-  ["silver900Price", "فضة عيار 900"],
-  ["silver800Price", "فضة عيار 800"],
-];
 
 function AdminDashboardPage() {
   useRequireRole("admin");
@@ -45,74 +24,21 @@ function AdminDashboardPage() {
     queryFn: () => getAdminSettings({ data: { token } }),
   });
 
-  const [prices, setPrices] = useState<PriceState>({
-    gold24Price: "",
-    gold22Price: "",
-    gold21Price: "",
-    gold18Price: "",
-    silver999Price: "",
-    silver925Price: "",
-    silver900Price: "",
-    silver800Price: "",
-  });
   const [displayCounter, setDisplayCounter] = useState("");
   const [supportContact, setSupportContact] = useState("");
   const [supportContactType, setSupportContactType] = useState<"phone" | "link" | "text">("phone");
   const [contacts, setContacts] = useState<SupportContact[]>([]);
-  const [savingPrices, setSavingPrices] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const initialized = settings?.ok;
   useEffect(() => {
     if (settings?.ok) {
-      setPrices({
-        gold24Price: String(settings.gold24Price),
-        gold22Price: String(settings.gold22Price),
-        gold21Price: String(settings.gold21Price),
-        gold18Price: String(settings.gold18Price),
-        silver999Price: String(settings.silver999Price),
-        silver925Price: String(settings.silver925Price),
-        silver900Price: String(settings.silver900Price),
-        silver800Price: String(settings.silver800Price),
-      });
       setDisplayCounter(String(settings.displayCounter));
       setSupportContact(settings.supportContact);
       setSupportContactType(settings.supportContactType as "phone" | "link" | "text");
       setContacts(settings.supportContacts ?? []);
     }
   }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleSavePrices = async () => {
-    setSavingPrices(true);
-    try {
-      const res = await updatePrices({
-        data: {
-          token,
-          prices: {
-            gold24Price: parseFloat(prices.gold24Price) || 0,
-            gold22Price: parseFloat(prices.gold22Price) || 0,
-            gold21Price: parseFloat(prices.gold21Price) || 0,
-            gold18Price: parseFloat(prices.gold18Price) || 0,
-            silver999Price: parseFloat(prices.silver999Price) || 0,
-            silver925Price: parseFloat(prices.silver925Price) || 0,
-            silver900Price: parseFloat(prices.silver900Price) || 0,
-            silver800Price: parseFloat(prices.silver800Price) || 0,
-          },
-        },
-      });
-      if (res.ok) {
-        await queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
-        await queryClient.invalidateQueries({ queryKey: ["public-prices"] });
-        toast.success("تم تحديث الأسعار بنجاح");
-      } else {
-        toast.error(res.message);
-      }
-    } catch {
-      toast.error("تعذر حفظ الأسعار، حاول مرة أخرى");
-    } finally {
-      setSavingPrices(false);
-    }
-  };
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
@@ -279,26 +205,7 @@ function AdminDashboardPage() {
       <div className="h-px bg-border" />
 
       {/* Prices */}
-      <h2 className="text-lg font-bold text-foreground">أسعار المعادن</h2>
-      <div className="space-y-4">
-        {PRICE_FIELDS.map(([key, label]) => (
-          <div key={key} className="flex items-center gap-4">
-            <Label className="w-28 shrink-0 text-start text-sm font-semibold text-muted-foreground">
-              {label}
-            </Label>
-            <Input
-              value={prices[key]}
-              onChange={(e) => setPrices((s) => ({ ...s, [key]: e.target.value }))}
-              inputMode="decimal"
-              className="h-12 bg-card font-semibold"
-            />
-          </div>
-        ))}
-      </div>
-
-      <Button className="h-14 w-full text-base font-bold" onClick={handleSavePrices} disabled={savingPrices}>
-        {savingPrices ? <Loader2 className="animate-spin" /> : "حفظ الأسعار"}
-      </Button>
+      <PriceEditor initial={settings?.ok ? settings.prices : undefined} />
     </main>
   );
 }
