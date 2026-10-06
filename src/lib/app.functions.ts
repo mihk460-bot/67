@@ -352,7 +352,8 @@ export const getAdminSettings = createServerFn({ method: "POST" })
       data,
     }): Promise<
       | Ok<
-          Prices & {
+          {
+            prices: Prices;
             realCounter: number;
             displayCounter: number;
             supportContact: string;
@@ -378,7 +379,7 @@ export const getAdminSettings = createServerFn({ method: "POST" })
         .gt("expires_at", new Date().toISOString());
       return {
         ok: true,
-        ...prices,
+        prices,
         realCounter: count ?? 0,
         displayCounter,
         supportContact,

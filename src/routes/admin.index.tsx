@@ -205,7 +205,7 @@ function AdminDashboardPage() {
       <div className="h-px bg-border" />
 
       {/* Prices */}
-      <PriceEditor initial={settings?.ok ? (settings as unknown as Record<string, number>) : undefined} />
+      <PriceEditor initial={settings?.ok ? settings.prices : undefined} />
     </main>
   );
 }
