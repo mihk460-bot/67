@@ -1,6 +1,7 @@
 import type { Json } from "@/integrations/supabase/types";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { ALL_PRICE_KEYS } from "./prices";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   hashPassword,
@@ -23,38 +24,16 @@ type MerchantRow = {
   created_at: string;
 };
 
-type Prices = {
-  gold24Price: number;
-  gold22Price: number;
-  gold21Price: number;
-  gold18Price: number;
-  silver999Price: number;
-  silver925Price: number;
-  silver900Price: number;
-  silver800Price: number;
-};
+type Prices = Record<string, number>;
 
-const DEFAULT_PRICES: Prices = {
-  gold24Price: 0,
-  gold22Price: 0,
-  gold21Price: 0,
-  gold18Price: 0,
-  silver999Price: 0,
-  silver925Price: 0,
-  silver900Price: 0,
-  silver800Price: 0,
-};
+const DEFAULT_PRICES: Prices = Object.fromEntries(ALL_PRICE_KEYS.map((k) => [k, 0]));
 
-const pricesSchema = z.object({
-  gold24Price: z.number(),
-  gold22Price: z.number(),
-  gold21Price: z.number(),
-  gold18Price: z.number(),
-  silver999Price: z.number(),
-  silver925Price: z.number(),
-  silver900Price: z.number(),
-  silver800Price: z.number(),
-});
+const pricesSchema = z.object(
+  Object.fromEntries(ALL_PRICE_KEYS.map((k) => [k, z.number().min(0).default(0)])) as Record<
+    string,
+    z.ZodDefault<z.ZodNumber>
+  >,
+);
 
 async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const { data } = await supabaseAdmin
@@ -117,7 +96,7 @@ async function getSupportContacts(): Promise<SupportContact[]> {
 
 export const getPublicPrices = createServerFn({ method: "GET" }).handler(async () => {
   const [prices, displayCounter, supportContact, supportContactType] = await Promise.all([
-    getSetting<Prices>("prices", DEFAULT_PRICES),
+    getSetting<Prices>("prices", DEFAULT_PRICES).then((p) => ({ ...DEFAULT_PRICES, ...p })),
     getSetting<number>("displayCounter", 0),
     getSetting<string>("supportContact", ""),
     getSetting<string>("supportContactType", "phone"),
@@ -385,7 +364,7 @@ export const getAdminSettings = createServerFn({ method: "POST" })
     > => {
       const payload = verifyToken(data.token);
       if (!payload || payload.role !== "admin") return fail("غير مصرح");
-      const prices = await getSetting<Prices>("prices", DEFAULT_PRICES);
+      const prices = { ...DEFAULT_PRICES, ...(await getSetting<Prices>("prices", DEFAULT_PRICES)) };
       const [displayCounter, supportContact, supportContactType] = await Promise.all([
         getSetting<number>("displayCounter", 0),
         getSetting<string>("supportContact", ""),

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Linkify } from "@/components/Linkify";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Bell } from "lucide-react";
@@ -80,7 +81,7 @@ function NotificationsPage() {
                   <h2 className="font-bold text-foreground">{n.title}</h2>
                   {isNew ? <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">جديد</span> : null}
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{n.body}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground"><Linkify text={n.body} /></p>
                 <p className="num mt-3 text-xs text-muted-foreground/70">
                   {new Date(n.createdAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" })}
                 </p>
