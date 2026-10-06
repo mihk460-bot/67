@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicPrices } from "@/lib/app.functions";
 import { useRequireRole } from "@/lib/auth-client";
+import { resolvePrice, type Side } from "@/lib/prices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ function CalculatorPage() {
   const [karat, setKarat] = useState<GoldKarat>("21");
   const [silverKarat, setSilverKarat] = useState<SilverKarat>("925");
 
+  const [side, setSide] = useState<Side>("sell");
   const [manualPrice, setManualPrice] = useState("");
   const [weight, setWeight] = useState("");
   const [craftsmanship, setCraftsmanship] = useState("");
@@ -40,17 +42,14 @@ function CalculatorPage() {
   const [profitPercent, setProfitPercent] = useState("");
   const [additionalFees, setAdditionalFees] = useState("");
 
-  // Auto-fill price when prices load or metal/karat changes
+  const currentKarat = metal === "gold" ? karat : silverKarat;
+  const resolved = resolvePrice(publicPrices?.prices, metal, currentKarat, side);
+
   useEffect(() => {
     if (!publicPrices) return;
-    if (metal === "gold") {
-      const p = publicPrices.prices[`gold${karat}Price` as keyof typeof publicPrices.prices];
-      setManualPrice(p ? String(p) : "");
-    } else {
-      const p = publicPrices.prices[`silver${silverKarat}Price` as keyof typeof publicPrices.prices];
-      setManualPrice(p ? String(p) : "");
-    }
-  }, [metal, karat, silverKarat, publicPrices]);
+    const r = resolvePrice(publicPrices.prices, metal, currentKarat, side);
+    setManualPrice(r.value ? String(r.value) : "");
+  }, [metal, currentKarat, side, publicPrices]);
 
   const handleUpdatePrice = async (target: Metal) => {
     setMetal(target);
@@ -58,13 +57,8 @@ function CalculatorPage() {
     const fresh = result.data;
     if (!fresh) return;
     queryClient.setQueryData(["public-prices"], fresh);
-    if (target === "gold") {
-      const p = fresh.prices[`gold${karat}Price` as keyof typeof fresh.prices];
-      setManualPrice(p ? String(p) : "");
-    } else {
-      const p = fresh.prices[`silver${silverKarat}Price` as keyof typeof fresh.prices];
-      setManualPrice(p ? String(p) : "");
-    }
+    const r = resolvePrice(fresh.prices, target, target === "gold" ? karat : silverKarat, side);
+    setManualPrice(r.value ? String(r.value) : "");
   };
 
   const calc = useMemo(() => {
@@ -138,6 +132,24 @@ function CalculatorPage() {
         </div>
       </div>
 
+      {/* Sell / buy toggle */}
+      <div className="rounded-xl bg-card p-1">
+        <div className="flex">
+          {(["sell", "buy"] as Side[]).map((sd) => (
+            <button
+              key={sd}
+              type="button"
+              onClick={() => setSide(sd)}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                side === sd ? "bg-secondary text-primary" : "text-muted-foreground"
+              }`}
+            >
+              {sd === "sell" ? "سعر البيع" : "سعر الشراء"}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Update buttons */}
       <div className="flex gap-2.5">
         <Button
@@ -179,7 +191,12 @@ function CalculatorPage() {
       <div className="space-y-5">
         <div className="space-y-2">
           <Label className="text-start text-sm text-muted-foreground">
-            سعر الجرام ({metal === "gold" ? `ذهب عيار ${karat}` : `فضة عيار ${silverKarat}`})
+            {side === "sell" ? "سعر بيع" : "سعر شراء"} الجرام ({metal === "gold" ? `ذهب عيار ${karat}` : `فضة عيار ${silverKarat}`})
+            {resolved.derived ? (
+              <span className="ms-1 text-xs text-primary">
+                (محسوب من عيار {metal === "gold" ? "24" : "999"})
+              </span>
+            ) : null}
           </Label>
           <Input
             inputMode="decimal"
@@ -287,7 +304,7 @@ function CalculatorPage() {
           className="h-12 flex-1 gap-2 font-semibold"
           onClick={async () => {
             const lines = [
-              `${metal === "gold" ? "ذهب عيار " + karat : "فضة " + silverKarat}`,
+              `${metal === "gold" ? "ذهب عيار " + karat : "فضة " + silverKarat} — ${side === "sell" ? "بيع" : "شراء"}`,
               `الوزن: ${weight || 0} جرام`,
               `سعر الجرام: ${fmt(parseFloat(manualPrice) || 0)}`,
               calc.craftCost ? `المصنعية: ${fmt(calc.craftCost)}` : "",
