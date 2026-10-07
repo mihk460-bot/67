@@ -15,3 +15,6 @@
 - All DB access goes through `supabaseAdmin` inside server functions only; RLS denies anon/authenticated on all public tables. Components never talk to the DB directly.
 - Client auth state (token + role) is stored in localStorage key `jewelry_auth_state` via `src/lib/auth-client.tsx`; protected routes call `useRequireRole()` client-side, and every privileged server function re-verifies the token server-side.
 - Design tokens (dark graphite + gold `#D4AF37` family, enforced dark, RTL) are defined in `src/styles.css` only; components use semantic Tailwind utilities, never hardcoded colors. Font: IBM Plex Sans Arabic, loaded in `__root.tsx` head.
+- Merchant store names are private settings keyed by verified owner ID; employees inherit their owner's name and only owners can update it, avoiding client-trusted ownership.
+- Invoices render once to an Arabic-font canvas using CSS print-palette tokens, reused for preview, PNG, PDF and iframe printing so exports match without server filesystem/native dependencies.
+- Support and renewal destinations use the shared ContactLink anchor/copy control to keep navigation and clipboard behavior consistent.
