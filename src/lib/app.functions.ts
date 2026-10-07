@@ -181,7 +181,7 @@ export const merchantLogin = createServerFn({ method: "POST" })
 
 export const getMerchantMe = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ token: z.string() }).parse(data))
-  .handler(async ({ data }): Promise<Ok<{ username: string; subscriptionActive: boolean; expiresAt: string; isEmployee: boolean }> | Fail> => {
+  .handler(async ({ data }): Promise<Ok<{ username: string; subscriptionActive: boolean; expiresAt: string; isEmployee: boolean; storeName: string }> | Fail> => {
     const merchant = await getMerchantByToken(data.token);
     if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
     return {
@@ -190,7 +190,22 @@ export const getMerchantMe = createServerFn({ method: "POST" })
       subscriptionActive: await isMerchantActive(merchant),
       expiresAt: merchant.expires_at,
       isEmployee: merchant.parent_merchant_id !== null,
+      storeName: await getSetting<string>(`merchant_store_name:${merchant.parent_merchant_id ?? merchant.id}`, ""),
     };
+  });
+
+export const updateStoreName = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({ token: z.string(), storeName: z.string().trim().min(1).max(100) }).parse(data))
+  .handler(async ({ data }): Promise<Ok<{}> | Fail> => {
+    const merchant = await getMerchantByToken(data.token);
+    if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
+    if (merchant.parent_merchant_id !== null) return fail("تعديل اسم المحل متاح للمالك فقط");
+    if (!(await isMerchantActive(merchant))) return fail("اشتراكك غير فعال");
+    const { error } = await supabaseAdmin.from("settings").upsert({
+      key: `merchant_store_name:${merchant.id}`, value: data.storeName,
+    });
+    if (error) return fail("تعذر حفظ اسم المحل، حاول مرة أخرى");
+    return { ok: true };
   });
 
 // ---------- merchant team (employees) ----------

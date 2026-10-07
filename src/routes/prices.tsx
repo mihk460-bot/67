@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { pageHead } from "@/lib/page-head";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, LogOut } from "lucide-react";
 import { getPublicPrices } from "@/lib/app.functions";
@@ -6,6 +7,7 @@ import { logout, useRequireRole } from "@/lib/auth-client";
 import { PriceEditor } from "@/components/PriceEditor";
 
 export const Route = createFileRoute("/prices")({
+  head: () => pageHead("مدير الأسعار", "تحديث سعر بيع وشراء الذهب والفضة لكل عيار"),
   component: PriceManagerPage,
 });
 

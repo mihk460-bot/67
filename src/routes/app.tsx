@@ -1,7 +1,8 @@
-import { contactHref } from "@/lib/support";
+import { ContactLink } from "@/components/ContactLink";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Headset, Link2, LogOut, MessageCircle, Phone, Settings } from "lucide-react";
+import { Bell, Headset, LogOut, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createFileRoute } from "@tanstack/react-router";
@@ -55,15 +56,15 @@ function MerchantLayout() {
                 <Settings className="size-5" />
               </Link>
             ) : null}
-            {contacts.length > 0 ? (
-              <button
+            {contacts.length > 0 || prices?.supportContact ? (
+              <Button variant="ghost" size="icon"
                 type="button"
                 className="p-2 text-primary"
                 aria-label="الدعم"
                 onClick={() => setSupportOpen(true)}
               >
                 <Headset className="size-5" />
-              </button>
+              </Button>
             ) : null}
             <Link to="/app/notifications" className="p-2 text-foreground" aria-label="الإشعارات">
               <Bell className="size-5" />
@@ -89,25 +90,8 @@ function MerchantLayout() {
             <DialogTitle className="text-start text-lg font-bold text-foreground">تواصل مع الدعم</DialogTitle>
           </DialogHeader>
           <div className="space-y-2.5">
-            {contacts.map((c, i) => {
-              const href = contactHref(c.type, c.value);
-              const Icon = c.type === "phone" ? Phone : c.type === "whatsapp" ? MessageCircle : Link2;
-              return (
-                <a
-                  key={i}
-                  href={href}
-                  target={c.type === "phone" ? undefined : "_blank"}
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
-                >
-                  <Icon className="size-5 text-primary" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{c.label}</p>
-                    <p className="text-xs text-muted-foreground" dir="ltr">{c.value}</p>
-                  </div>
-                </a>
-              );
-            })}
+            {contacts.map((contact, i) => <ContactLink key={i} {...contact} />)}
+            {prices?.supportContact ? <ContactLink label="تحديث الاشتراك" value={prices.supportContact} type={prices.supportContactType as "phone" | "link" | "text"} /> : null}
           </div>
         </DialogContent>
       </Dialog>

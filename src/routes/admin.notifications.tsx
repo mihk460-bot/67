@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bell, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/admin/notifications")({
+  head: () => pageHead("إرسال الإشعارات", "إرسال إشعارات أسعار الذهب والفضة والتحديثات إلى التجار"),
   component: AdminNotificationsPage,
 });
 

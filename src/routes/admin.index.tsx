@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { PriceEditor } from "@/components/PriceEditor";
 
 export const Route = createFileRoute("/admin/")({
+  head: () => pageHead("الأسعار وإعدادات الإدارة", "إدارة أسعار بيع وشراء العيارات وإعدادات الدعم والاشتراكات"),
   component: AdminDashboardPage,
 });
 

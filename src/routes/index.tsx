@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, Phone, Users } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { merchantLogin, merchantRegister, getPublicPrices, type SupportContact } from "@/lib/app.functions";
-import { contactHref } from "@/lib/support";
+import { ContactLink } from "@/components/ContactLink";
 import { loginAs, loadAuthState, routeForRole } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,15 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "حاسبة الصاغة — تسجيل الدخول" },
-      {
-        name: "description",
-        content: "تسجيل دخول التجار لحساب أسعار الذهب والفضة",
-      },
-    ],
-  }),
+  head: () => pageHead("تسجيل الدخول", "تسجيل دخول التجار والموظفين لحساب أسعار الذهب والفضة والتواصل لتجديد الاشتراك"),
   component: LoginPage,
 });
 
@@ -39,6 +32,7 @@ function LoginPage() {
     type: "phone" | "link" | "text";
   } | null>(null);
   const [supportContact, setSupportContact] = useState<string | null>(null);
+  const [supportType, setSupportType] = useState<"phone" | "link" | "text">("phone");
   const [allContacts, setAllContacts] = useState<SupportContact[]>([]);
   const [supportList, setSupportList] = useState<SupportContact[]>([]);
 
@@ -49,6 +43,7 @@ function LoginPage() {
     }
     getPublicPrices().then((d) => {
       setSupportContact(d.supportContact || null);
+      setSupportType(d.supportContactType as "phone" | "link" | "text");
       setAllContacts(d.supportContacts ?? []);
     });
   }, [navigate]);
@@ -74,7 +69,7 @@ function LoginPage() {
           setSupportList(allContacts);
           const contact = res.supportContact || supportContact;
           const type = (res.supportContactType || "phone") as "phone" | "link" | "text";
-          if (contact && allContacts.length === 0) setExpiredContact({ value: contact, type });
+          if (contact) setExpiredContact({ value: contact, type });
         }
       }
     } catch {
@@ -213,59 +208,8 @@ function LoginPage() {
                     <p className="text-center text-sm font-medium text-muted-foreground">
                       للتجديد تواصل مع الإدارة
                     </p>
-                    {supportList.map((c, i) => (
-                      <a
-                        key={i}
-                        href={contactHref(c.type, c.value)}
-                        target={c.type === "phone" ? undefined : "_blank"}
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
-                      >
-                        <span>{c.label}</span>
-                        <span dir="ltr">{c.value}</span>
-                      </a>
-                    ))}
-                    {expiredContact ? (<>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        className="flex-1"
-                        onClick={() => {
-                          if (expiredContact.type === "phone") {
-                            window.location.href = `tel:${expiredContact.value}`;
-                          } else if (expiredContact.type === "link") {
-                            window.open(expiredContact.value, "_blank");
-                          }
-                        }}
-                        disabled={expiredContact.type === "text"}
-                      >
-                        {expiredContact.type === "phone" ? (
-                          <>
-                            <Phone className="size-4" /> اتصال
-                          </>
-                        ) : expiredContact.type === "link" ? (
-                          "فتح الرابط"
-                        ) : (
-                          "بيانات التواصل"
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="flex-1"
-                        onClick={() => {
-                          navigator.clipboard.writeText(expiredContact.value);
-                          toast.success("تم نسخ بيانات التواصل");
-                        }}
-                      >
-                        نسخ
-                      </Button>
-                    </div>
-                    <p className="select-text text-center font-semibold text-foreground">
-                      {expiredContact.value}
-                    </p>
-                    </>
-                    ) : null}
+                    {supportList.map((contact, i) => <ContactLink key={i} {...contact} />)}
+                    {expiredContact ? <ContactLink {...expiredContact} label="تحديث الاشتراك" /> : null}
                   </div>
                 ) : null}
               </div>
@@ -290,6 +234,11 @@ function LoginPage() {
           </button>
         ) : null}
 
+        {!errorMsg && (allContacts.length > 0 || supportContact) ? <section className="mt-6 space-y-2">
+          <h2 className="text-sm font-semibold text-primary">التواصل مع الدعم</h2>
+          {allContacts.map((contact, i) => <ContactLink key={i} {...contact} />)}
+          {supportContact ? <ContactLink type={supportType} value={supportContact} label="تحديث الاشتراك" /> : null}
+        </section> : null}
         <div className="mt-14 flex flex-col items-center gap-1 pb-4 text-center">
           <Users className="size-4 text-muted-foreground/60" />
           <a href="/admin-login" className="text-xs text-muted-foreground hover:text-foreground">

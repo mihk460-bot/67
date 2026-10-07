@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/admin/merchants")({
+  head: () => pageHead("إدارة التجار", "إدارة حسابات التجار ومواعيد الاشتراكات وحالة الحسابات"),
   component: AdminMerchantsPage,
 });
 

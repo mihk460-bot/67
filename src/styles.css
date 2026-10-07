@@ -82,6 +82,13 @@
   --border: oklch(0.275 0.008 260);
   --input: oklch(0.275 0.008 260);
   --ring: oklch(0.78 0.13 87);
+  --invoice-paper: #ffffff;
+  --invoice-ink: #20242a;
+  --invoice-muted: #656c75;
+  --invoice-gold: #876710;
+  --invoice-gold-soft: #f7f2e6;
+  --invoice-silver: #515c6a;
+  --invoice-silver-soft: #eef0f3;
   --chart-1: oklch(0.78 0.13 87);
   --chart-2: oklch(0.72 0.13 160);
   --chart-3: oklch(0.63 0.2 25);
@@ -137,3 +144,5 @@
     unicode-bidi: isolate;
   }
 }
+
+.invoice-print-frame { position: fixed; width: 1px; height: 1px; border: 0; bottom: 0; left: 0; }
