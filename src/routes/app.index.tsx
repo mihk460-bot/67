@@ -3,8 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { getPublicPrices } from "@/lib/app.functions";
-import { useRequireRole } from "@/lib/auth-client";
+import { getPublicPrices, getMerchantMe } from "@/lib/app.functions";
+import { useRequireRole, readToken } from "@/lib/auth-client";
+import { InvoiceDialog } from "@/components/InvoiceDialog";
+import type { InvoiceData } from "@/lib/invoice";
 import { resolvePrice, type Side } from "@/lib/prices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,8 @@ type WastageUnit = "grams" | "percent";
 function CalculatorPage() {
   useRequireRole("merchant");
   const queryClient = useQueryClient();
+  const { data: me } = useQuery({ queryKey: ["merchant-me"], queryFn: () => getMerchantMe({ data: { token: readToken() } }) });
+  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
 
   const { data: publicPrices, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["public-prices"],
@@ -302,30 +306,18 @@ function CalculatorPage() {
         <Button
           type="button"
           className="h-12 flex-1 gap-2 font-semibold"
-          onClick={async () => {
-            const lines = [
-              `${metal === "gold" ? "ذهب عيار " + karat : "فضة " + silverKarat} — ${side === "sell" ? "بيع" : "شراء"}`,
-              `الوزن: ${weight || 0} جرام`,
-              `سعر الجرام: ${fmt(parseFloat(manualPrice) || 0)}`,
-              calc.craftCost ? `المصنعية: ${fmt(calc.craftCost)}` : "",
-              calc.wastageCost ? `الخسارة: ${fmt(calc.wastageCost)}` : "",
-              calc.fees ? `رسوم إضافية: ${fmt(calc.fees)}` : "",
-              `الإجمالي: ${fmt(calc.finalTotal)}`,
-            ].filter(Boolean);
-            const text = lines.join("\n");
-            try {
-              if (navigator.share) {
-                await navigator.share({ text });
-              } else {
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-              }
-            } catch {
-              await navigator.clipboard?.writeText(text);
-              toast.success("تم نسخ العرض");
+          disabled={!me?.ok}
+          onClick={() => {
+            const values = [manualPrice, weight, craftsmanship, wastage, profitPercent, additionalFees].map((value) => value.trim() === "" ? 0 : Number(value));
+            if (values.some((value) => !Number.isFinite(value) || value < 0) || values[0] <= 0 || values[1] <= 0 || !Number.isFinite(calc.finalTotal)) {
+              toast.error("أدخل سعراً ووزناً أكبر من صفر وقِيماً صحيحة لبقية الحقول"); return;
             }
+            setInvoice({ storeName: me?.ok ? me.storeName : "", metal, karat: currentKarat, side,
+              weight: values[1], price: values[0], craftsmanship: values[2], wastage: values[3], wastageUnit,
+              profitPercent: values[4], ...calc, issuedAt: new Date().toISOString() });
           }}
         >
-          <Share2 className="size-4" /> مشاركة العرض
+          <Share2 className="size-4" /> الفاتورة والمشاركة
         </Button>
         <Button
           type="button"
@@ -342,6 +334,7 @@ function CalculatorPage() {
           <RotateCcw className="size-4" /> تصفير
         </Button>
       </div>
+      <InvoiceDialog data={invoice} onClose={() => setInvoice(null)} />
     </main>
   );
 }

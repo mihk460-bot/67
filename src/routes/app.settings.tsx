@@ -3,7 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bell, Loader2, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { createEmployee, deleteEmployee, getMerchantMe, getMerchantTeam, setEmployeeActive } from "@/lib/app.functions";
+import { createEmployee, deleteEmployee, getMerchantMe, getMerchantTeam, setEmployeeActive, updateStoreName, getPublicPrices } from "@/lib/app.functions";
+import { ContactLink } from "@/components/ContactLink";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,9 @@ function MerchantSettingsPage() {
   const [employeeUsername, setEmployeeUsername] = useState("");
   const [employeePassword, setEmployeePassword] = useState("");
   const [pending, setPending] = useState(false);
+  const [storeName, setStoreName] = useState("");
+  const [savingStore, setSavingStore] = useState(false);
+  const { data: publicSettings } = useQuery({ queryKey: ["public-prices"], queryFn: () => getPublicPrices() });
 
   const { data: teamRaw, isLoading: teamLoading } = useQuery({
     queryKey: ["merchant-team"],
@@ -40,6 +44,7 @@ function MerchantSettingsPage() {
     queryFn: () => getMerchantMe({ data: { token: readToken() } }),
   });
   const isEmployee = !!me && me.ok && me.isEmployee;
+  useEffect(() => { if (me?.ok) setStoreName(me.storeName); }, [me]);
   useEffect(() => {
     if (isEmployee) navigate({ to: "/app", replace: true });
   }, [isEmployee, navigate]);
@@ -60,6 +65,24 @@ function MerchantSettingsPage() {
       </div>
 
       <div className="space-y-4">
+        <form className="space-y-3 border-b border-border pb-6" onSubmit={async (event) => {
+          event.preventDefault(); if (savingStore || !storeName.trim()) return;
+          setSavingStore(true);
+          try {
+            const result = await updateStoreName({ data: { token: readToken(), storeName } });
+            if (result.ok) { await queryClient.invalidateQueries({ queryKey: ["merchant-me"] }); toast.success("تم حفظ اسم المحل"); }
+            else toast.error(result.message);
+          } catch { toast.error("تعذر حفظ اسم المحل"); } finally { setSavingStore(false); }
+        }}>
+          <Label htmlFor="store-name">اسم المحل</Label>
+          <Input id="store-name" maxLength={100} required value={storeName} onChange={(event) => setStoreName(event.target.value)} />
+          <Button type="submit" disabled={savingStore || !me?.ok || !storeName.trim()}>{savingStore ? <Loader2 className="animate-spin" /> : null}حفظ اسم المحل</Button>
+        </form>
+        {publicSettings && (publicSettings.supportContacts.length > 0 || publicSettings.supportContact) ? <section className="space-y-3 border-b border-border pb-6">
+          <h2 className="font-semibold">التواصل مع الدعم وتحديث الاشتراك</h2>
+          {publicSettings.supportContacts.map((contact, i) => <ContactLink key={i} {...contact} />)}
+          {publicSettings.supportContact ? <ContactLink type={publicSettings.supportContactType as "phone" | "link" | "text"} value={publicSettings.supportContact} label="تحديث الاشتراك" /> : null}
+        </section> : null}
         {/* Notifications note (in-app delivery on web) */}
         <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5">
           <div className="flex size-12 items-center justify-center rounded-full bg-secondary">
