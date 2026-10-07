@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
+import { BarChart3, Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { getPublicPrices, getMerchantMe } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
@@ -12,6 +12,7 @@ import { resolvePrice, type Side } from "@/lib/prices";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SalesRecorder } from "@/components/SalesRecorder";
 
 export const Route = createFileRoute("/app/")({
   head: () => pageHead("الحاسبة والفواتير", "حساب بيع وشراء الذهب والفضة وإصدار فواتير باسم المحل ومشاركتها وطباعتها"),
@@ -90,6 +91,19 @@ function CalculatorPage() {
 
   return (
     <main className="mx-auto w-full max-w-lg space-y-6 px-4 pb-16 pt-6">
+      <div className="flex gap-2">
+        <SalesRecorder onSaleRecorded={() => queryClient.invalidateQueries({ queryKey: ["merchant-sales"] })} />
+        <Button
+          type="button"
+          variant="secondary"
+          className="gap-2 font-semibold"
+          onClick={() => window.location.assign("/app/sales")}
+        >
+          <BarChart3 className="size-4" />
+          سجل المبيعات
+        </Button>
+      </div>
+
       {/* Metal toggle */}
       <div className="rounded-xl bg-card p-1">
         <div className="flex">
@@ -333,7 +347,7 @@ function CalculatorPage() {
             setAdditionalFees("");
           }}
         >
-          <RotateCcw className="size-4" /> تصفير
+          <RefreshCw className="size-4" /> تصفير
         </Button>
       </div>
       <InvoiceDialog data={invoice} onClose={() => setInvoice(null)} />
