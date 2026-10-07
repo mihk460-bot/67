@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Bell, Loader2, Trash2, Users } from "lucide-react";
@@ -17,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/app/settings")({
+  head: () => pageHead("إعدادات المحل", "إدارة اسم المحل وحسابات الموظفين والتواصل مع الدعم لتجديد الاشتراك"),
   component: MerchantSettingsPage,
 });
 
@@ -75,7 +77,7 @@ function MerchantSettingsPage() {
           } catch { toast.error("تعذر حفظ اسم المحل"); } finally { setSavingStore(false); }
         }}>
           <Label htmlFor="store-name">اسم المحل</Label>
-          <Input id="store-name" maxLength={100} required value={storeName} onChange={(event) => setStoreName(event.target.value)} />
+          <Input id="store-name" maxLength={100} required disabled={!me?.ok || savingStore} value={storeName} onChange={(event) => setStoreName(event.target.value)} />
           <Button type="submit" disabled={savingStore || !me?.ok || !storeName.trim()}>{savingStore ? <Loader2 className="animate-spin" /> : null}حفظ اسم المحل</Button>
         </form>
         {publicSettings && (publicSettings.supportContacts.length > 0 || publicSettings.supportContact) ? <section className="space-y-3 border-b border-border pb-6">

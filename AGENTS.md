@@ -18,3 +18,4 @@
 - Merchant store names are private settings keyed by verified owner ID; employees inherit their owner's name and only owners can update it, avoiding client-trusted ownership.
 - Invoices render once to an Arabic-font canvas using CSS print-palette tokens, reused for preview, PNG, PDF and iframe printing so exports match without server filesystem/native dependencies.
 - Support and renewal destinations use the shared ContactLink anchor/copy control to keep navigation and clipboard behavior consistent.
+- Content routes define unique metadata through pageHead; shared layouts rely on their content children's metadata.

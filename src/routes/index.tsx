@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -11,15 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "حاسبة الصاغة — تسجيل الدخول" },
-      {
-        name: "description",
-        content: "تسجيل دخول التجار لحساب أسعار الذهب والفضة",
-      },
-    ],
-  }),
+  head: () => pageHead("تسجيل الدخول", "تسجيل دخول التجار والموظفين لحساب أسعار الذهب والفضة والتواصل لتجديد الاشتراك"),
   component: LoginPage,
 });
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Loader2, Shield } from "lucide-react";
 import { adminLogin } from "@/lib/app.functions";
@@ -7,12 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/admin-login")({
-  head: () => ({
-    meta: [
-      { title: "حاسبة الصاغة — دخول الإدارة" },
-      { name: "description", content: "دخول لوحة الإدارة ومدير الأسعار" },
-    ],
-  }),
+  head: () => pageHead("دخول الإدارة", "تسجيل دخول الإدارة ومدير أسعار الذهب والفضة"),
   component: AdminLoginPage,
 });
 

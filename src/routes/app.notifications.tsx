@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { Linkify } from "@/components/Linkify";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import { getNotifications } from "@/lib/app.functions";
 import { useRequireRole } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/app/notifications")({
+  head: () => pageHead("إشعارات التاجر", "إشعارات الأسعار وأخبار الذهب والفضة للتجار"),
   component: NotificationsPage,
 });
 

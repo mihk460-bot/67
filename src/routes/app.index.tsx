@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { pageHead } from "@/lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, RotateCcw, Share2 } from "lucide-react";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/app/")({
+  head: () => pageHead("الحاسبة والفواتير", "حساب بيع وشراء الذهب والفضة وإصدار فواتير باسم المحل ومشاركتها وطباعتها"),
   component: CalculatorPage,
 });
 
