@@ -14,7 +14,7 @@ export function cleanWhatsappLink(raw: string | null | undefined): string {
 
   // صيغة Markdown: [نص](رابط)
   const markdown = value.match(/\[[^\]]*\]\(\s*([^)\s]+)\s*\)/);
-  if (markdown) value = markdown[1];
+  if (markdown?.[1]) value = markdown[1];
 
   // إزالة الأقواس وعلامات الاقتباس وأي مسافات
   value = value.replace(/[\[\]()<>"'`]/g, "").replace(/\s+/g, "");
