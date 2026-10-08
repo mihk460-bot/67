@@ -1,7 +1,7 @@
 import { ContactLink } from "@/components/ContactLink";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Headset, LogOut, Settings } from "lucide-react";
+import { Bell, ClipboardList, Headset, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +51,9 @@ function MerchantLayout() {
                 </span>
               </div>
             ) : null}
+            <Link to="/app/sales-log" className="p-2 text-foreground" aria-label="سجل المبيعات والعمليات" title="سجل المبيعات والعمليات">
+              <ClipboardList className="size-5" />
+            </Link>
             {isOwner ? (
               <Link to="/app/settings" className="p-2 text-foreground" aria-label="الإعدادات">
                 <Settings className="size-5" />

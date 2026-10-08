@@ -3,7 +3,9 @@ export type InvoiceData = {
   weight: number; price: number; craftsmanship: number; wastage: number; wastageUnit: "grams" | "percent";
   profitPercent: number; baseCost: number; craftCost: number; wastageCost: number; fees: number;
   profitAmount: number; finalTotal: number; issuedAt: string;
+  invoiceNumber?: string; issuedBy?: string;
 };
+import { formatDateTime } from "./datetime";
 export const invoiceFooter = "Powered by 21 Gain Global";
 const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -32,7 +34,8 @@ export async function renderInvoice(data: InvoiceData): Promise<HTMLCanvasElemen
   while (ctx.measureText(name).width > 1040 && nameSize > 22) { nameSize -= 2; ctx.font = `600 ${nameSize}px "IBM Plex Sans Arabic"`; }
   text(name, 620, 150, nameSize, ink, "center", true);
   text(`فاتورة ${data.metal === "gold" ? "ذهب" : "فضة"} • ${data.side === "sell" ? "بيع" : "شراء"}`, 620, 215, 32, accent, "center", true);
-  text(new Date(data.issuedAt).toLocaleString("ar-EG", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }), 620, 277, 23, muted, "center");
+  text(formatDateTime(data.issuedAt, true), 620, 277, 23, muted, "center", false);
+  if (data.invoiceNumber) text(`رقم الفاتورة: ${data.invoiceNumber}${data.issuedBy ? ` • الموظف: ${data.issuedBy}` : ""}`, 620, 312, 22, muted, "center");
   ctx.fillStyle = soft; ctx.fillRect(90, 330, 1060, 175);
   text("العيار", 1090, 388, 25, muted); text(data.karat, 1090, 452, 40, ink, "right", true);
   text("الوزن (جرام)", 760, 388, 25, muted); text(fmt(data.weight), 760, 452, 40, ink, "right", true);
@@ -58,7 +61,7 @@ export async function renderInvoice(data: InvoiceData): Promise<HTMLCanvasElemen
 }
 
 export async function invoiceFile(canvas: HTMLCanvasElement, metal: InvoiceData["metal"], format: "pdf" | "png"): Promise<File> {
-  const filename = `invoice-${metal}-${Date.now()}.${format}`;
+  const filename = `invoice-${metal}-${Date.now()}.${format}`; // unique per export
   if (format === "pdf") {
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });

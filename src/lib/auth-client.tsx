@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { logLogout } from "@/lib/logs.functions";
 
 const STORAGE_KEY = "jewelry_auth_state";
 
@@ -52,6 +53,8 @@ export function loginAs(state: AuthState) {
 }
 
 export function logout() {
+  const token = readToken();
+  if (token) logLogout({ data: { token } }).catch(() => undefined);
   saveAuthState({ token: null, role: null });
 }
 
