@@ -15,10 +15,12 @@ import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as PricesRouteImport } from './routes/prices'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminMerchantsRouteImport } from './routes/admin.merchants'
 import { Route as AdminNotificationsRouteImport } from './routes/admin.notifications'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
+import { Route as AppSalesLogRouteImport } from './routes/app.sales-log'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 
 const IndexRoute = IndexRouteImport.update({
@@ -51,6 +53,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLogsRoute = AdminLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminMerchantsRoute = AdminMerchantsRouteImport.update({
   id: '/merchants',
   path: '/merchants',
@@ -71,6 +78,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSalesLogRoute = AppSalesLogRouteImport.update({
+  id: '/sales-log',
+  path: '/sales-log',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -83,9 +95,11 @@ export interface FileRoutesByFullPath {
   '/admin-login': typeof AdminLoginRoute
   '/app': typeof AppRouteWithChildren
   '/prices': typeof PricesRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/merchants': typeof AdminMerchantsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/app/notifications': typeof AppNotificationsRoute
+  '/app/sales-log': typeof AppSalesLogRoute
   '/app/settings': typeof AppSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
@@ -94,9 +108,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin-login': typeof AdminLoginRoute
   '/prices': typeof PricesRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/merchants': typeof AdminMerchantsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/app/notifications': typeof AppNotificationsRoute
+  '/app/sales-log': typeof AppSalesLogRoute
   '/app/settings': typeof AppSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/app': typeof AppIndexRoute
@@ -108,9 +124,11 @@ export interface FileRoutesById {
   '/admin-login': typeof AdminLoginRoute
   '/app': typeof AppRouteWithChildren
   '/prices': typeof PricesRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/merchants': typeof AdminMerchantsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
   '/app/notifications': typeof AppNotificationsRoute
+  '/app/sales-log': typeof AppSalesLogRoute
   '/app/settings': typeof AppSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
@@ -123,9 +141,11 @@ export interface FileRouteTypes {
     | '/admin-login'
     | '/app'
     | '/prices'
+    | '/admin/logs'
     | '/admin/merchants'
     | '/admin/notifications'
     | '/app/notifications'
+    | '/app/sales-log'
     | '/app/settings'
     | '/admin/'
     | '/app/'
@@ -134,9 +154,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin-login'
     | '/prices'
+    | '/admin/logs'
     | '/admin/merchants'
     | '/admin/notifications'
     | '/app/notifications'
+    | '/app/sales-log'
     | '/app/settings'
     | '/admin'
     | '/app'
@@ -147,9 +169,11 @@ export interface FileRouteTypes {
     | '/admin-login'
     | '/app'
     | '/prices'
+    | '/admin/logs'
     | '/admin/merchants'
     | '/admin/notifications'
     | '/app/notifications'
+    | '/app/sales-log'
     | '/app/settings'
     | '/admin/'
     | '/app/'
@@ -207,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/logs': {
+      id: '/admin/logs'
+      path: '/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AdminLogsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/merchants': {
       id: '/admin/merchants'
       path: '/merchants'
@@ -235,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/sales-log': {
+      id: '/app/sales-log'
+      path: '/sales-log'
+      fullPath: '/app/sales-log'
+      preLoaderRoute: typeof AppSalesLogRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/settings': {
       id: '/app/settings'
       path: '/settings'
@@ -246,12 +284,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminLogsRoute: typeof AdminLogsRoute
   AdminMerchantsRoute: typeof AdminMerchantsRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminLogsRoute: AdminLogsRoute,
   AdminMerchantsRoute: AdminMerchantsRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -261,12 +301,14 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AppRouteChildren {
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppSalesLogRoute: typeof AppSalesLogRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppNotificationsRoute: AppNotificationsRoute,
+  AppSalesLogRoute: AppSalesLogRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
 }
