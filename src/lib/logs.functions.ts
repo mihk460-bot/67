@@ -19,12 +19,12 @@ const err = (message: string) => ({ ok: false as const, message });
 
 export type SaleRow = {
   id: number; invoiceNumber: string; employeeId: number; employeeName: string; metal: "gold" | "silver";
-  karat: string; side: "sell" | "buy"; weight: number; total: number; invoice: Record<string, unknown>; createdAt: string;
+  karat: string; side: "sell" | "buy"; weight: number; total: number; invoice: Record<string, Json>; createdAt: string;
 };
 const mapSale = (r: { id: number; invoice_number: string | null; employee_id: number; employee_name: string; metal: string; karat: string; side: string; weight: number; total: number; invoice: Json; created_at: string }): SaleRow => ({
   id: r.id, invoiceNumber: r.invoice_number ?? "", employeeId: r.employee_id, employeeName: r.employee_name,
   metal: r.metal === "silver" ? "silver" : "gold", karat: r.karat, side: r.side === "buy" ? "buy" : "sell",
-  weight: Number(r.weight), total: Number(r.total), invoice: (r.invoice ?? {}) as Record<string, unknown>, createdAt: r.created_at,
+  weight: Number(r.weight), total: Number(r.total), invoice: (r.invoice ?? {}) as Record<string, Json>, createdAt: r.created_at,
 });
 
 export const recordSale = createServerFn({ method: "POST" })
@@ -78,7 +78,7 @@ export const logLogout = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export type ActivityRow = { id: number; kind: string; actorId: string; actorName: string; actorRole: string; shopId: number | null; details: Record<string, unknown>; createdAt: string };
+export type ActivityRow = { id: number; kind: string; actorId: string; actorName: string; actorRole: string; shopId: number | null; details: Record<string, Json>; createdAt: string };
 export type AccountRow = { id: number; username: string; isActive: boolean; expiresAt: string; lastSeenAt: string | null; createdAt: string };
 export type ShopRow = AccountRow & { storeName: string; employees: AccountRow[]; salesCount: number; salesTotal: number };
 
@@ -106,7 +106,7 @@ export const getAdminLogs = createServerFn({ method: "POST" })
     const sum = (metal: string, f: "weight" | "total") => salesRows.filter((s) => s.metal === metal).reduce((a, s) => a + Number(s[f]), 0);
     return {
       ok: true as const,
-      activity: (acts.data ?? []).map((a): ActivityRow => ({ id: a.id, kind: a.kind, actorId: a.actor_id, actorName: a.actor_name, actorRole: a.actor_role, shopId: a.shop_id, details: (a.details ?? {}) as Record<string, unknown>, createdAt: a.created_at })),
+      activity: (acts.data ?? []).map((a): ActivityRow => ({ id: a.id, kind: a.kind, actorId: a.actor_id, actorName: a.actor_name, actorRole: a.actor_role, shopId: a.shop_id, details: (a.details ?? {}) as Record<string, Json>, createdAt: a.created_at })),
       shops,
       stats: { salesCount: salesRows.length, salesTotal: sum("gold", "total") + sum("silver", "total"), goldWeight: sum("gold", "weight"), silverWeight: sum("silver", "weight"), goldTotal: sum("gold", "total"), silverTotal: sum("silver", "total") },
     };

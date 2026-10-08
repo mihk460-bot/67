@@ -11,7 +11,7 @@ export function formatDateTime(value: string | number | Date | null | undefined,
     new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
       .formatToParts(d).map((p) => [p.type, p.value]),
   );
-  const s = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+  const s = `${parts["year"]}-${parts["month"]}-${parts["day"]} ${parts["hour"]}:${parts["minute"]}:${parts["second"]}`;
   return withZone ? `${s} (${zoneLabel(d)})` : s;
 }
 
