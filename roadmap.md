@@ -3,7 +3,7 @@
 - [x] Support contact button for merchants (admin manages multiple links/numbers)
 - [x] Admin subscription date accepts single-digit day (2026-10-4)
 - [x] Full app review
-- [ ] Clickable support and renewal links with copy buttons
-- [ ] Persist owner store name and use it for employee invoices
-- [ ] Gold/silver invoice preview, image sharing, PDF download and printing
-- [ ] Verify updated flows and invoice output
+- [x] Clickable support and renewal links with copy buttons
+- [x] Persist owner store name and use it for employee invoices
+- [x] Gold/silver invoice preview, image sharing, PDF download and printing
+- [x] Merchant sales log + admin system logs (subscriptions, prices, sessions, accounts, stats)

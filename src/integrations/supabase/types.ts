@@ -14,12 +14,46 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          actor_id: string
+          actor_name: string
+          actor_role: string
+          created_at: string
+          details: Json
+          id: number
+          kind: string
+          shop_id: number | null
+        }
+        Insert: {
+          actor_id?: string
+          actor_name?: string
+          actor_role?: string
+          created_at?: string
+          details?: Json
+          id?: never
+          kind: string
+          shop_id?: number | null
+        }
+        Update: {
+          actor_id?: string
+          actor_name?: string
+          actor_role?: string
+          created_at?: string
+          details?: Json
+          id?: never
+          kind?: string
+          shop_id?: number | null
+        }
+        Relationships: []
+      }
       merchants: {
         Row: {
           created_at: string
           expires_at: string
           id: number
           is_active: boolean
+          last_seen_at: string | null
           parent_merchant_id: number | null
           password_hash: string
           session_version: number
@@ -31,6 +65,7 @@ export type Database = {
           expires_at?: string
           id?: never
           is_active?: boolean
+          last_seen_at?: string | null
           parent_merchant_id?: number | null
           password_hash: string
           session_version?: number
@@ -42,6 +77,7 @@ export type Database = {
           expires_at?: string
           id?: never
           is_active?: boolean
+          last_seen_at?: string | null
           parent_merchant_id?: number | null
           password_hash?: string
           session_version?: number
@@ -76,6 +112,51 @@ export type Database = {
           created_at?: string
           id?: never
           title?: string
+        }
+        Relationships: []
+      }
+      sales_logs: {
+        Row: {
+          created_at: string
+          employee_id: number
+          employee_name: string
+          id: number
+          invoice: Json
+          invoice_number: string | null
+          karat: string
+          metal: string
+          shop_id: number
+          side: string
+          total: number
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: number
+          employee_name?: string
+          id?: never
+          invoice?: Json
+          invoice_number?: string | null
+          karat: string
+          metal: string
+          shop_id: number
+          side?: string
+          total?: number
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: number
+          employee_name?: string
+          id?: never
+          invoice?: Json
+          invoice_number?: string | null
+          karat?: string
+          metal?: string
+          shop_id?: number
+          side?: string
+          total?: number
+          weight?: number
         }
         Relationships: []
       }

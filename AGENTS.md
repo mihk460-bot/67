@@ -19,3 +19,4 @@
 - Invoices render once to an Arabic-font canvas using CSS print-palette tokens, reused for preview, PNG, PDF and iframe printing so exports match without server filesystem/native dependencies.
 - Support and renewal destinations use the shared ContactLink anchor/copy control to keep navigation and clipboard behavior consistent.
 - Content routes define unique metadata through pageHead; shared layouts rely on their content children's metadata.
+- Sales and audit logs live in DB tables sales_logs/activity_logs written only by server functions (src/lib/logs.functions.ts, logs.server.ts); uploaded localStorage logger was not used because client-side logs can be faked or lost.

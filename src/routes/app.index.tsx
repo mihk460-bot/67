@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getPublicPrices, getMerchantMe } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { InvoiceDialog } from "@/components/InvoiceDialog";
+import { recordSale } from "@/lib/logs.functions";
 import type { InvoiceData } from "@/lib/invoice";
 import { resolvePrice, type Side } from "@/lib/prices";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ function CalculatorPage() {
   const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["merchant-me"], queryFn: () => getMerchantMe({ data: { token: readToken() } }) });
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+  const [issuing, setIssuing] = useState(false);
 
   const { data: publicPrices, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["public-prices"],
@@ -308,18 +310,26 @@ function CalculatorPage() {
         <Button
           type="button"
           className="h-12 flex-1 gap-2 font-semibold"
-          disabled={!me?.ok}
-          onClick={() => {
+          disabled={!me?.ok || issuing}
+          onClick={async () => {
             const values = [manualPrice, weight, craftsmanship, wastage, profitPercent, additionalFees].map((value) => value.trim() === "" ? 0 : Number(value));
-            if (values.some((value) => !Number.isFinite(value) || value < 0) || values[0] <= 0 || values[1] <= 0 || !Number.isFinite(calc.finalTotal)) {
+            if (values.some((value) => !Number.isFinite(value) || value < 0) || (values[0] ?? 0) <= 0 || (values[1] ?? 0) <= 0 || !Number.isFinite(calc.finalTotal)) {
               toast.error("أدخل سعراً ووزناً أكبر من صفر وقِيماً صحيحة لبقية الحقول"); return;
             }
-            setInvoice({ storeName: me?.ok ? me.storeName : "", metal, karat: currentKarat, side,
-              weight: values[1], price: values[0], craftsmanship: values[2], wastage: values[3], wastageUnit,
-              profitPercent: values[4], ...calc, issuedAt: new Date().toISOString() });
+            const [price = 0, w = 0, craft = 0, wast = 0, profit = 0] = values;
+            const draft: InvoiceData = { storeName: me?.ok ? me.storeName : "", metal, karat: currentKarat, side,
+              weight: w, price, craftsmanship: craft, wastage: wast, wastageUnit,
+              profitPercent: profit, ...calc, issuedAt: new Date().toISOString(), issuedBy: me?.ok ? me.username : "" };
+            setIssuing(true);
+            try {
+              const res = await recordSale({ data: { token: readToken(), invoice: draft } });
+              if (!res.ok) { toast.error(res.message); return; }
+              setInvoice({ ...draft, invoiceNumber: res.invoiceNumber, issuedAt: res.createdAt });
+            } catch { toast.error("تعذر إصدار الفاتورة، حاول مرة أخرى"); }
+            finally { setIssuing(false); }
           }}
         >
-          <Share2 className="size-4" /> الفاتورة والمشاركة
+          {issuing ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />} إصدار الفاتورة
         </Button>
         <Button
           type="button"

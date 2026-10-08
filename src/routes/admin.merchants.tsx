@@ -60,6 +60,8 @@ function AdminMerchantsPage() {
   const [subscriptionMonths, setSubscriptionMonths] = useState("1");
   const [customExpiryDate, setCustomExpiryDate] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
   const [pending, setPending] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -72,6 +74,7 @@ function AdminMerchantsPage() {
     setSubscriptionMonths("1");
     setCustomExpiryDate("");
     setIsActive(true);
+    setPaymentAmount(""); setPaymentNote("");
     setModalOpen(true);
   };
 
@@ -82,6 +85,7 @@ function AdminMerchantsPage() {
     setSubscriptionMonths("");
     setCustomExpiryDate(m.expiresAt ? new Date(m.expiresAt).toISOString().slice(0, 10) : "");
     setIsActive(m.isActive);
+    setPaymentAmount(""); setPaymentNote("");
     setModalOpen(true);
   };
 
@@ -102,6 +106,9 @@ function AdminMerchantsPage() {
       expiresAt = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     }
 
+    const amount = paymentAmount.trim() ? Number(paymentAmount.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))) : undefined;
+    if (amount !== undefined && (!Number.isFinite(amount) || amount < 0)) { toast.error("مبلغ الدفع غير صحيح"); return; }
+    const payment = { ...(amount !== undefined ? { paymentAmount: amount } : {}), ...(paymentNote.trim() ? { paymentNote: paymentNote.trim() } : {}) };
     setPending(true);
     try {
       if (!editing) {
@@ -115,6 +122,7 @@ function AdminMerchantsPage() {
             username: username.trim(),
             password,
             ...(expiresAt ? { expiresAt } : { subscriptionMonths: parseInt(subscriptionMonths) || 1 }),
+            ...payment,
           },
         });
         if (res.ok) {
@@ -133,6 +141,7 @@ function AdminMerchantsPage() {
             ...(password ? { password } : {}),
             ...(subscriptionMonths ? { subscriptionMonths: parseInt(subscriptionMonths) } : {}),
             ...(expiresAt ? { expiresAt } : {}),
+            ...payment,
           },
         });
         if (res.ok) {
@@ -289,6 +298,17 @@ function AdminMerchantsPage() {
               <p className="text-xs text-muted-foreground">
                 التاريخ المخصص يتجاوز مدة الاشتراك بالأشهر.
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="m-pay" className="text-start">المبلغ المدفوع (اختياري)</Label>
+                <Input id="m-pay" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} inputMode="decimal" className="num" dir="ltr" placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="m-pay-note" className="text-start">ملاحظة الدفع</Label>
+                <Input id="m-pay-note" value={paymentNote} onChange={(e) => setPaymentNote(e.target.value)} maxLength={200} placeholder="تحويل / نقدي..." />
+              </div>
             </div>
 
             {editing ? (

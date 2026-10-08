@@ -35,6 +35,7 @@ function AdminLayout() {
             { to: "/admin", label: "الأسعار والإعدادات" },
             { to: "/admin/merchants", label: "التجار" },
             { to: "/admin/notifications", label: "الإشعارات" },
+            { to: "/admin/logs", label: "السجلات" },
           ].map((tab) => (
             <button
               key={tab.to}
