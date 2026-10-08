@@ -10,6 +10,7 @@ import {
   verifyToken,
   type TokenPayload,
 } from "./auth.server";
+import { logActivity } from "./logs.server";
 
 // ---------- shared helpers ----------
 
@@ -175,6 +176,10 @@ export const merchantLogin = createServerFn({ method: "POST" })
         role: "merchant",
         sv: merchant.session_version,
       });
+      await Promise.all([
+        logActivity({ kind: "login", actorId: String(merchant.id), actorName: merchant.username, actorRole: merchant.parent_merchant_id ? "employee" : "merchant", shopId: merchant.parent_merchant_id ?? merchant.id }),
+        supabaseAdmin.from("merchants").update({ last_seen_at: new Date().toISOString() }).eq("id", merchant.id),
+      ]);
       return { ok: true, token, merchantId: merchant.id };
     },
   );
@@ -184,6 +189,7 @@ export const getMerchantMe = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Ok<{ username: string; subscriptionActive: boolean; expiresAt: string; isEmployee: boolean; storeName: string }> | Fail> => {
     const merchant = await getMerchantByToken(data.token);
     if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
+    await supabaseAdmin.from("merchants").update({ last_seen_at: new Date().toISOString() }).eq("id", merchant.id);
     return {
       ok: true,
       username: merchant.username,
@@ -345,9 +351,11 @@ export const adminLogin = createServerFn({ method: "POST" })
         return fail("كلمات مرور الإدارة غير مهيأة بعد");
       }
       if (adminPassword && input === adminPassword) {
+        await logActivity({ kind: "login", actorId: "admin", actorName: "مالك التطبيق", actorRole: "admin" });
         return { ok: true, token: signToken({ sub: "admin", role: "admin" }), role: "admin" };
       }
       if (priceManagerPassword && input === priceManagerPassword) {
+        await logActivity({ kind: "login", actorId: "price-manager", actorName: "مدير الأسعار", actorRole: "price_manager" });
         return {
           ok: true,
           token: signToken({ sub: "price-manager", role: "price_manager" }),
@@ -413,7 +421,12 @@ export const updatePrices = createServerFn({ method: "POST" })
     if (!payload || (payload.role !== "admin" && payload.role !== "price_manager")) {
       return fail("غير مصرح");
     }
+    const old = { ...DEFAULT_PRICES, ...(await getSetting<Prices>("prices", DEFAULT_PRICES)) };
     await setSetting("prices", data.prices);
+    const changes = ALL_PRICE_KEYS.filter((k) => (old[k] ?? 0) !== (data.prices[k] ?? 0)).map((k) => ({ key: k, old: old[k] ?? 0, new: data.prices[k] ?? 0 }));
+    if (changes.length) {
+      await logActivity({ kind: "price_update", actorId: payload.sub, actorName: payload.role === "admin" ? "مالك التطبيق" : "مدير الأسعار", actorRole: payload.role, details: { changes } });
+    }
     return { ok: true };
   });
 
@@ -481,6 +494,8 @@ export const createMerchant = createServerFn({ method: "POST" })
         password: z.string().min(6).max(128),
         subscriptionMonths: z.number().int().min(1).max(120).optional(),
         expiresAt: z.string().optional(),
+        paymentAmount: z.number().min(0).max(100000000).optional(),
+        paymentNote: z.string().trim().max(200).optional(),
       })
       .refine((d) => d.subscriptionMonths != null || d.expiresAt != null, {
         message: "حدد مدة الاشتراك أو تاريخ الانتهاء",
@@ -504,6 +519,9 @@ export const createMerchant = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error || !created) return fail("تعذر إنشاء التاجر، حاول مرة أخرى");
+    await logActivity({ kind: "subscription", actorId: "admin", actorName: "مالك التطبيق", actorRole: "admin", shopId: created.id, details: {
+      shopUsername: username, action: "new", startAt: new Date().toISOString(), endAt: new Date(expiresAt).toISOString(), previousEndAt: null,
+      months: data.subscriptionMonths ?? null, paymentAmount: data.paymentAmount ?? null, paymentNote: data.paymentNote ?? "" } });
     return { ok: true, id: created.id };
   });
 
@@ -517,6 +535,8 @@ export const updateMerchant = createServerFn({ method: "POST" })
         password: z.string().min(6).max(128).optional(),
         subscriptionMonths: z.number().int().min(1).max(120).optional(),
         expiresAt: z.string().optional(),
+        paymentAmount: z.number().min(0).max(100000000).optional(),
+        paymentNote: z.string().trim().max(200).optional(),
       })
       .refine((d) => d.subscriptionMonths != null || d.expiresAt != null, {
         message: "حدد مدة الاشتراك أو تاريخ الانتهاء",
@@ -558,6 +578,14 @@ export const updateMerchant = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin.from("merchants").update(updates).eq("id", data.id);
     if (error) return fail("تعذر تحديث التاجر، حاول مرة أخرى");
+    const prevEnd = (merchant as MerchantRow).expires_at;
+    if (updates.expires_at && updates.expires_at !== prevEnd) {
+      const prevMs = new Date(prevEnd).getTime();
+      await logActivity({ kind: "subscription", actorId: "admin", actorName: "مالك التطبيق", actorRole: "admin", shopId: data.id, details: {
+        shopUsername: (merchant as MerchantRow).username, action: "renewal",
+        startAt: new Date(prevMs > Date.now() ? prevMs : Date.now()).toISOString(), endAt: updates.expires_at, previousEndAt: prevEnd,
+        months: data.expiresAt ? null : data.subscriptionMonths ?? null, paymentAmount: data.paymentAmount ?? null, paymentNote: data.paymentNote ?? "" } });
+    }
     return { ok: true };
   });
 
