@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { verifyToken } from "./auth.server";
 import { logActivity } from "./logs.server";
+import { calculateSalesSummary, type SalesReportRow } from "./sales-report";
 
 type Merchant = { id: number; username: string; parent_merchant_id: number | null; session_version: number; is_active: boolean; expires_at: string; last_seen_at: string | null; created_at: string };
 
@@ -38,6 +39,19 @@ export const recordSale = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const m = await merchantFromToken(data.token);
     if (!m) return err("انتهت الجلسة");
+    const merchantActive = m.is_active && new Date(m.expires_at).getTime() > Date.now();
+    let ownerActive = true;
+    if (m.parent_merchant_id !== null) {
+      const { data: owner, error: ownerError } = await supabaseAdmin
+        .from("merchants")
+        .select("is_active, expires_at")
+        .eq("id", m.parent_merchant_id)
+        .maybeSingle();
+      ownerActive = !ownerError && !!owner?.is_active && new Date(owner.expires_at).getTime() > Date.now();
+    }
+    if (!merchantActive || !ownerActive) {
+      return err("انتهى اشتراك المحل؛ تواصل مع الإدارة لتجديده");
+    }
     const shopId = m.parent_merchant_id ?? m.id;
     const { data: row, error } = await supabaseAdmin.from("sales_logs").insert({
       shop_id: shopId, employee_id: m.id, employee_name: m.username, metal: data.invoice.metal, karat: data.invoice.karat,
@@ -55,6 +69,58 @@ export const getSalesLog = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin.from("sales_logs").select("*").eq("shop_id", m.parent_merchant_id ?? m.id).order("created_at", { ascending: false }).limit(2000);
     if (error) return err("تعذر تحميل السجل");
     return { ok: true as const, sales: (rows ?? []).map(mapSale) };
+  });
+
+export const getSalesReport = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({
+    token: z.string(),
+    from: z.string().datetime(),
+    to: z.string().datetime(),
+  }).refine((value) => {
+    const from = new Date(value.from).getTime();
+    const to = new Date(value.to).getTime();
+    return from < to && to - from <= 367 * 24 * 60 * 60 * 1000;
+  }, { message: "الفترة الزمنية غير صالحة" }).parse(d))
+  .handler(async ({ data }) => {
+    const m = await merchantFromToken(data.token);
+    if (!m) return err("انتهت الجلسة");
+
+    const shopId = m.parent_merchant_id ?? m.id;
+    const rows: SalesReportRow[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+
+    while (true) {
+      const { data: page, error } = await supabaseAdmin
+        .from("sales_logs")
+        .select("id, metal, karat, side, weight, total, invoice")
+        .eq("shop_id", shopId)
+        .gte("created_at", data.from)
+        .lt("created_at", data.to)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (error) return err("تعذر تحميل التقرير المالي");
+      for (const row of page ?? []) {
+        const invoice = row.invoice && typeof row.invoice === "object" && !Array.isArray(row.invoice)
+          ? row.invoice as Record<string, unknown>
+          : {};
+        rows.push({
+          metal: row.metal,
+          karat: row.karat,
+          side: row.side,
+          weight: Number(row.weight),
+          total: Number(row.total),
+          invoice,
+        });
+      }
+
+      if ((page?.length ?? 0) < pageSize) break;
+      offset += pageSize;
+    }
+
+    return { ok: true as const, summary: calculateSalesSummary(rows) };
   });
 
 export const logLogout = createServerFn({ method: "POST" })

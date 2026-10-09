@@ -190,11 +190,22 @@ export const getMerchantMe = createServerFn({ method: "POST" })
     const merchant = await getMerchantByToken(data.token);
     if (!merchant) return fail("انتهت الجلسة", { error: "invalid_session" });
     await supabaseAdmin.from("merchants").update({ last_seen_at: new Date().toISOString() }).eq("id", merchant.id);
+    let ownerActive = true;
+    let expiresAt = merchant.expires_at;
+    if (merchant.parent_merchant_id !== null) {
+      const { data: owner } = await supabaseAdmin
+        .from("merchants")
+        .select("is_active, expires_at")
+        .eq("id", merchant.parent_merchant_id)
+        .maybeSingle();
+      ownerActive = !!owner?.is_active && new Date(owner.expires_at).getTime() > Date.now();
+      expiresAt = owner?.expires_at ?? merchant.expires_at;
+    }
     return {
       ok: true,
       username: merchant.username,
-      subscriptionActive: await isMerchantActive(merchant),
-      expiresAt: merchant.expires_at,
+      subscriptionActive: await isMerchantActive(merchant) && ownerActive,
+      expiresAt,
       isEmployee: merchant.parent_merchant_id !== null,
       storeName: await getSetting<string>(`merchant_store_name:${merchant.parent_merchant_id ?? merchant.id}`, ""),
     };

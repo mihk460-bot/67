@@ -1,7 +1,7 @@
 import { ContactLink } from "@/components/ContactLink";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ClipboardList, Headset, LogOut, Settings } from "lucide-react";
+import { Bell, ClipboardList, Headset, LockKeyhole, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +9,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getMerchantMe, getPublicPrices } from "@/lib/app.functions";
 import { logout, readToken, useRequireRole } from "@/lib/auth-client";
 import { Logo } from "@/components/logo";
+import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
+import { getSubscriptionExpiry } from "@/lib/subscription";
 
 export const Route = createFileRoute("/app")({
   component: MerchantLayout,
@@ -27,16 +29,40 @@ function MerchantLayout() {
     queryKey: ["merchant-me"],
     queryFn: () => getMerchantMe({ data: { token: readToken() } }),
     enabled: !!state?.token,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   const [supportOpen, setSupportOpen] = useState(false);
   const contacts = prices?.supportContacts ?? [];
   const isOwner = !!me && me.ok && !me.isEmployee;
+  const expiry = me?.ok ? getSubscriptionExpiry(me.expiresAt) : null;
+  const subscriptionExpired = !!me?.ok && !me.subscriptionActive;
+  const expiringSoon = !!me?.ok && me.subscriptionActive && !!expiry?.expiringSoon;
 
   if (!state?.token) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-card">
+        {expiringSoon ? (
+          <div role="alert" className="w-full border-b border-primary/40 bg-primary/15 px-4 py-3 text-foreground">
+            <div className="mx-auto flex w-full max-w-5xl flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-bold leading-relaxed">
+                تنبيه: اشتراكك ينتهي خلال {expiry.daysRemaining} أيام. لتجنب توقف الخدمة تواصل مع الإدارة لتجديد الاشتراك
+              </p>
+              <div className="w-full shrink-0 sm:w-72">
+                <WhatsAppSupportButton
+                  contacts={contacts}
+                  supportContact={prices?.supportContact}
+                  supportContactType={prices?.supportContactType}
+                  storeName={me?.ok ? me.storeName : ""}
+                  purpose="renewal"
+                  size="card"
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="mx-auto flex h-16 w-full max-w-lg items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <Logo />
@@ -85,6 +111,17 @@ function MerchantLayout() {
             </button>
           </div>
         </div>
+        {contacts.length > 0 || prices?.supportContact ? (
+          <div className="mx-auto w-full max-w-lg px-4 pb-3">
+            <WhatsAppSupportButton
+              contacts={contacts}
+              supportContact={prices?.supportContact}
+              supportContactType={prices?.supportContactType}
+              storeName={me?.ok ? me.storeName : ""}
+              size="compact"
+            />
+          </div>
+        ) : null}
       </header>
       <Outlet />
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
@@ -98,6 +135,52 @@ function MerchantLayout() {
           </div>
         </DialogContent>
       </Dialog>
+      {subscriptionExpired ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/95 p-4 backdrop-blur-sm"
+          dir="rtl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="subscription-lock-title"
+        >
+          <section className="my-auto w-full max-w-xl space-y-6 rounded-3xl border border-border bg-card p-6 text-center shadow-2xl sm:p-10">
+            <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <LockKeyhole className="size-10" aria-hidden="true" />
+            </div>
+            <div className="space-y-3">
+              <h1 id="subscription-lock-title" className="text-3xl font-extrabold leading-relaxed text-foreground sm:text-4xl">
+                عفواً، انتهت فترة اشتراك المحل
+              </h1>
+              <p className="text-lg leading-8 text-muted-foreground sm:text-xl">
+                يرجى التواصل مع إدارة المنصة لتجديد اشتراكك واستعادة الوصول الكامل للخدمات.
+              </p>
+            </div>
+            <WhatsAppSupportButton
+              contacts={contacts}
+              supportContact={prices?.supportContact}
+              supportContactType={prices?.supportContactType}
+              storeName={me?.ok ? me.storeName : ""}
+              purpose="renewal"
+              size="large"
+            />
+            {contacts.length > 0 || prices?.supportContact ? (
+              <div className="space-y-2 text-start">
+                <p className="text-sm font-semibold text-muted-foreground">قنوات التواصل المتاحة:</p>
+                {contacts.map((contact, index) => <ContactLink key={`lock-${index}`} {...contact} />)}
+                {prices?.supportContact ? (
+                  <ContactLink
+                    label="تواصل مع الإدارة"
+                    value={prices.supportContact}
+                    type={prices.supportContactType as "phone" | "link" | "text"}
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">لم تُضف الإدارة بيانات تواصل للدعم حتى الآن.</p>
+            )}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

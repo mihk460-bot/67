@@ -1,16 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Eye, Loader2, Search } from "lucide-react";
 import { pageHead } from "@/lib/page-head";
-import { getSalesLog, type SaleRow } from "@/lib/logs.functions";
+import { getSalesLog, getSalesReport, type SaleRow } from "@/lib/logs.functions";
 import { readToken, useRequireRole } from "@/lib/auth-client";
-import { formatDateTime, localDay, zoneLabel } from "@/lib/datetime";
+import { formatDateTime, zoneLabel } from "@/lib/datetime";
 import { InvoiceDialog } from "@/components/InvoiceDialog";
 import type { InvoiceData } from "@/lib/invoice";
+import { getReportWindow, type ReportRange } from "@/lib/sales-report";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/app/sales-log")({
   head: () => pageHead("سجل المبيعات والعمليات", "جميع فواتير الذهب والفضة الصادرة من المحل مع الفلترة والإحصائيات"),
@@ -21,12 +23,26 @@ const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 
 
 function SalesLogPage() {
   const state = useRequireRole("merchant");
+  const [range, setRange] = useState<ReportRange>("daily");
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const reportWindow = getReportWindow(range, now);
   const { data, isLoading } = useQuery({
     queryKey: ["sales-log"],
     queryFn: () => getSalesLog({ data: { token: readToken() } }),
     enabled: !!state?.token,
   });
-  const sales = data?.ok ? data.sales : [];
+  const { data: reportData, isLoading: reportLoading } = useQuery({
+    queryKey: ["sales-report", range, reportWindow.from, reportWindow.to],
+    queryFn: () => getSalesReport({ data: { token: readToken(), from: reportWindow.from, to: reportWindow.to } }),
+    enabled: !!state?.token,
+    refetchInterval: 60_000,
+  });
+  const report = reportData?.ok ? reportData.summary : undefined;
+  const sales = useMemo(() => data?.ok ? data.sales : [], [data]);
   const [q, setQ] = useState("");
   const [metal, setMetal] = useState<"all" | "gold" | "silver">("all");
   const [employee, setEmployee] = useState("all");
@@ -45,13 +61,33 @@ function SalesLogPage() {
     return true;
   }), [sales, q, metal, employee, from, to]);
 
-  const today = localDay(new Date());
-  const todays = sales.filter((s) => localDay(s.createdAt) === today);
   const stats = [
-    ["مبيعات اليوم", fmt(todays.filter((s) => s.side === "sell").reduce((a, s) => a + s.total, 0))],
-    ["الفواتير الصادرة", `${fmt(sales.length)} (اليوم ${todays.length})`],
-    ["وزن الذهب المباع", `${fmt(sales.filter((s) => s.metal === "gold" && s.side === "sell").reduce((a, s) => a + s.weight, 0))} جم`],
-    ["وزن الفضة المباع", `${fmt(sales.filter((s) => s.metal === "silver" && s.side === "sell").reduce((a, s) => a + s.weight, 0))} جم`],
+    {
+      label: "إجمالي المبيعات المالية",
+      value: report ? fmt(report.revenue) : reportLoading ? "…" : "—",
+    },
+    {
+      label: "إجمالي صافي الأرباح",
+      value: report ? fmt(report.netProfit) : reportLoading ? "…" : "—",
+    },
+    {
+      label: "متوسط نسبة الربح",
+      value: report ? `${fmt(report.averageProfitMarginPercent)}%` : reportLoading ? "…" : "—",
+    },
+    {
+      label: "وزن الذهب المباع",
+      value: report ? `${fmt(report.goldWeight)} جم` : reportLoading ? "…" : "—",
+      detail: report ? ["24", "22", "21", "18"].filter((karat) => (report.goldWeightByKarat[karat] ?? 0) > 0).map((karat) => `${karat}: ${fmt(report.goldWeightByKarat[karat] ?? 0)} جم`).join(" • ") : "",
+    },
+    {
+      label: "وزن الفضة المباعة",
+      value: report ? `${fmt(report.silverWeight)} جم` : reportLoading ? "…" : "—",
+      detail: report ? ["999", "925", "900", "800"].filter((karat) => (report.silverWeightByKarat[karat] ?? 0) > 0).map((karat) => `${karat}: ${fmt(report.silverWeightByKarat[karat] ?? 0)} جم`).join(" • ") : "",
+    },
+    {
+      label: "عدد الفواتير الصادرة",
+      value: report ? fmt(report.invoiceCount) : reportLoading ? "…" : "—",
+    },
   ];
 
   const openInvoice = (s: SaleRow) => setOpen({ ...(s.invoice as unknown as InvoiceData), invoiceNumber: s.invoiceNumber, issuedAt: s.createdAt, issuedBy: s.employeeName });
@@ -62,14 +98,29 @@ function SalesLogPage() {
         <h1 className="text-xl font-bold text-foreground">سجل المبيعات والعمليات</h1>
         <p className="text-xs text-muted-foreground" dir="ltr">{zoneLabel()}</p>
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stats.map(([l, v]) => (
-          <div key={l} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">{l}</p>
-            <p className="num mt-1 text-lg font-bold text-primary">{v}</p>
-          </div>
-        ))}
-      </div>
+      <section className="space-y-3" aria-label="تصفية التقرير المالي">
+        <Tabs value={range} onValueChange={(value) => setRange(value as ReportRange)}>
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 sm:grid-cols-6">
+            <TabsTrigger className="py-2" value="daily">يومي</TabsTrigger>
+            <TabsTrigger className="py-2" value="weekly">أسبوعي</TabsTrigger>
+            <TabsTrigger className="py-2" value="monthly">شهري</TabsTrigger>
+            <TabsTrigger className="py-2" value="quarterly">ربع سنوي</TabsTrigger>
+            <TabsTrigger className="py-2" value="semiannual">نصف سنوي</TabsTrigger>
+            <TabsTrigger className="py-2" value="yearly">سنوي</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <p className="text-xs text-muted-foreground">{reportWindow.label} — الأرقام المالية تخص فواتير البيع ضمن الفترة</p>
+        {reportData && !reportData.ok ? <p className="text-sm text-destructive">{reportData.message}</p> : null}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {stats.map(({ label, value, detail }) => (
+            <div key={label} className="min-w-0 rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="num mt-1 text-lg font-bold text-primary">{value}</p>
+              {detail ? <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{detail}</p> : null}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-5">
         <div className="relative md:col-span-2">

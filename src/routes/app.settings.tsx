@@ -6,6 +6,7 @@ import { ArrowRight, Bell, Loader2, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createEmployee, deleteEmployee, getMerchantMe, getMerchantTeam, setEmployeeActive, updateStoreName, getPublicPrices } from "@/lib/app.functions";
 import { ContactLink } from "@/components/ContactLink";
+import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,13 @@ function MerchantSettingsPage() {
         </form>
         {publicSettings && (publicSettings.supportContacts.length > 0 || publicSettings.supportContact) ? <section className="space-y-3 border-b border-border pb-6">
           <h2 className="font-semibold">التواصل مع الدعم وتحديث الاشتراك</h2>
+          <WhatsAppSupportButton
+            contacts={publicSettings.supportContacts}
+            supportContact={publicSettings.supportContact}
+            supportContactType={publicSettings.supportContactType}
+            storeName={me?.ok ? me.storeName : storeName}
+            size="large"
+          />
           {publicSettings.supportContacts.map((contact, i) => <ContactLink key={i} {...contact} />)}
           {publicSettings.supportContact ? <ContactLink type={publicSettings.supportContactType as "phone" | "link" | "text"} value={publicSettings.supportContact} label="تحديث الاشتراك" /> : null}
         </section> : null}

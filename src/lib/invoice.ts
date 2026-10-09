@@ -9,54 +9,98 @@ import { formatDateTime } from "./datetime";
 export const invoiceFooter = "Powered by 21 Gain Global";
 const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-export async function renderInvoice(data: InvoiceData): Promise<HTMLCanvasElement> {
+export type InvoicePaper = "a4" | "thermal";
+
+export function customerInvoiceRows(data: InvoiceData): { label: string; value: string }[] {
+  const rows = [
+    { label: "تفاصيل القطعة", value: `${data.metal === "gold" ? "ذهب" : "فضة"} • ${data.side === "sell" ? "بيع" : "شراء"}` },
+    { label: "الوزن القائم", value: `${fmt(data.weight)} جرام` },
+    { label: "العيار", value: data.karat },
+    { label: "سعر الجرام", value: fmt(data.price) },
+  ];
+
+  if (data.craftCost > 0) rows.push({ label: "إجمالي المصنعية", value: fmt(data.craftCost) });
+  if (data.wastage > 0) {
+    rows.push({
+      label: "الهالك / الكسر",
+      value: `${fmt(data.wastage)} ${data.wastageUnit === "grams" ? "جرام" : "%"}${data.wastageCost > 0 ? ` • ${fmt(data.wastageCost)}` : ""}`,
+    });
+  }
+
+  return rows;
+}
+
+export function buildCustomerInvoiceText(data: InvoiceData): string {
+  const lines = [
+    `المحل: ${data.storeName.trim() || "حاسبة الصاغة"}`,
+    `الموظف: ${data.issuedBy?.trim() || "—"}`,
+    ...(data.invoiceNumber ? [`رقم الفاتورة: ${data.invoiceNumber}`] : []),
+    `التاريخ والوقت: ${formatDateTime(data.issuedAt)}`,
+    ...customerInvoiceRows(data).map(({ label, value }) => `${label}: ${value}`),
+    `الإجمالي النهائي المطلوب: ${fmt(data.finalTotal)}`,
+  ];
+  return lines.join("\n");
+}
+
+export async function renderInvoice(data: InvoiceData, paper: InvoicePaper = "a4"): Promise<HTMLCanvasElement> {
   await document.fonts.load('600 32px "IBM Plex Sans Arabic"');
   await document.fonts.ready;
+  const thermal = paper === "thermal";
+  const width = thermal ? 800 : 1240;
+  const rows = customerInvoiceRows(data);
+  const rowStart = thermal ? 330 : 690;
+  const rowHeight = thermal ? 62 : 105;
+  const totalTop = rowStart + rows.length * rowHeight + (thermal ? 25 : 45);
+  const totalHeight = thermal ? 125 : 160;
+  const footerY = totalTop + totalHeight + (thermal ? 70 : 165);
   const canvas = document.createElement("canvas");
-  canvas.width = 1240; canvas.height = 1754;
+  canvas.width = width;
+  canvas.height = thermal ? footerY + 75 : 1754;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("تعذر إنشاء الفاتورة");
   const tokens = getComputedStyle(document.documentElement);
   const token = (name: string) => tokens.getPropertyValue(name).trim();
-  const paper = token("--invoice-paper"), ink = token("--invoice-ink"), muted = token("--invoice-muted");
+  const paperColor = token("--invoice-paper"), ink = token("--invoice-ink"), muted = token("--invoice-muted");
   const accent = token(data.metal === "gold" ? "--invoice-gold" : "--invoice-silver");
   const soft = token(data.metal === "gold" ? "--invoice-gold-soft" : "--invoice-silver-soft");
-  ctx.fillStyle = paper; ctx.fillRect(0, 0, 1240, 1754);
-  ctx.fillStyle = accent; ctx.fillRect(0, 0, 1240, 18);
-  const text = (value: string, x: number, y: number, size = 30, color = ink, align: CanvasTextAlign = "right", bold = false, maxWidth = 1040) => {
+  ctx.fillStyle = paperColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, width, thermal ? 12 : 18);
+  const text = (value: string, x: number, y: number, size = 30, color = ink, align: CanvasTextAlign = "right", bold = false, maxWidth = width - 100) => {
     ctx.fillStyle = color; ctx.textAlign = align; ctx.direction = align === "right" ? "rtl" : "ltr";
     ctx.font = `${bold ? 600 : 400} ${size}px "IBM Plex Sans Arabic", sans-serif`;
     ctx.fillText(value, x, y, maxWidth);
   };
   const name = data.storeName.trim() || "حاسبة الصاغة";
-  let nameSize = 58;
+  let nameSize = thermal ? 42 : 58;
   ctx.font = `600 ${nameSize}px "IBM Plex Sans Arabic"`;
-  while (ctx.measureText(name).width > 1040 && nameSize > 22) { nameSize -= 2; ctx.font = `600 ${nameSize}px "IBM Plex Sans Arabic"`; }
-  text(name, 620, 150, nameSize, ink, "center", true);
-  text(`فاتورة ${data.metal === "gold" ? "ذهب" : "فضة"} • ${data.side === "sell" ? "بيع" : "شراء"}`, 620, 215, 32, accent, "center", true);
-  text(formatDateTime(data.issuedAt, true), 620, 277, 23, muted, "center", false);
-  if (data.invoiceNumber) text(`رقم الفاتورة: ${data.invoiceNumber}${data.issuedBy ? ` • الموظف: ${data.issuedBy}` : ""}`, 620, 312, 22, muted, "center");
-  ctx.fillStyle = soft; ctx.fillRect(90, 330, 1060, 175);
-  text("العيار", 1090, 388, 25, muted); text(data.karat, 1090, 452, 40, ink, "right", true);
-  text("الوزن (جرام)", 760, 388, 25, muted); text(fmt(data.weight), 760, 452, 40, ink, "right", true);
-  text("سعر الجرام", 395, 388, 25, muted); text(fmt(data.price), 395, 452, 40, ink, "right", true, 245);
-  text("تفاصيل الفاتورة", 1150, 580, 32, ink, "right", true);
-  const rows: [string, number][] = [
-    ["قيمة المعدن الخام", data.baseCost],
-    [`المصنعية (${fmt(data.craftsmanship)} للجرام)`, data.craftCost],
-    [`الخسارة / الكسر (${fmt(data.wastage)} ${data.wastageUnit === "grams" ? "جرام" : "%"})`, data.wastageCost],
-    ["الرسوم الإضافية", data.fees],
-    [`الربح (${fmt(data.profitPercent)}%)`, data.profitAmount],
-  ];
-  rows.forEach(([label, value], i) => {
-    const y = 672 + i * 112;
-    text(label, 1140, y, 29, muted, "right", false, 730); text(fmt(value), 100, y, 32, ink, "left", true, 290);
-    ctx.fillStyle = soft; ctx.fillRect(90, y + 35, 1060, 2);
+  while (ctx.measureText(name).width > width - 100 && nameSize > 22) {
+    nameSize -= 2;
+    ctx.font = `600 ${nameSize}px "IBM Plex Sans Arabic"`;
+  }
+  text(name, width / 2, thermal ? 78 : 150, nameSize, ink, "center", true);
+  text(`فاتورة ${data.metal === "gold" ? "ذهب" : "فضة"} • ${data.side === "sell" ? "بيع" : "شراء"}`, width / 2, thermal ? 130 : 215, thermal ? 30 : 32, accent, "center", true);
+  text(`الموظف: ${data.issuedBy?.trim() || "—"}`, width / 2, thermal ? 180 : 270, thermal ? 24 : 23, muted, "center");
+  text(formatDateTime(data.issuedAt, true), width / 2, thermal ? 218 : 315, thermal ? 18 : 21, muted, "center", false);
+  if (data.invoiceNumber) text(`رقم الفاتورة: ${data.invoiceNumber}`, width / 2, thermal ? 252 : 355, thermal ? 19 : 22, muted, "center");
+
+  rows.forEach(({ label, value }, index) => {
+    const y = rowStart + index * rowHeight;
+    if (!thermal) {
+      ctx.fillStyle = soft;
+      ctx.fillRect(90, y - 53, 1060, 76);
+    }
+    text(label, width - (thermal ? 45 : 110), y, thermal ? 29 : 29, muted, "right", false, thermal ? 440 : 680);
+    text(value, thermal ? 45 : 110, y, thermal ? 27 : 30, ink, "left", true, thermal ? 250 : 350);
+    ctx.fillStyle = soft;
+    ctx.fillRect(thermal ? 40 : 90, y + (thermal ? 20 : 35), width - (thermal ? 80 : 180), 2);
   });
-  ctx.fillStyle = accent; ctx.fillRect(90, 1280, 1060, 160);
-  text("الإجمالي النهائي", 1110, 1378, 38, paper, "right", true, 480);
-  text(fmt(data.finalTotal), 130, 1378, 48, paper, "left", true, 520);
-  text(invoiceFooter, 620, 1670, 23, muted, "center");
+  ctx.fillStyle = accent;
+  ctx.fillRect(thermal ? 35 : 90, totalTop, width - (thermal ? 70 : 180), totalHeight);
+  text("الإجمالي النهائي المطلوب", width - (thermal ? 55 : 130), totalTop + (thermal ? 53 : 63), thermal ? 25 : 35, paperColor, "right", true, thermal ? 390 : 480);
+  text(fmt(data.finalTotal), thermal ? 55 : 130, totalTop + (thermal ? 100 : 125), thermal ? 36 : 48, paperColor, "left", true, thermal ? 300 : 520);
+  text(invoiceFooter, width / 2, footerY + 35, thermal ? 17 : 23, muted, "center");
   return canvas;
 }
 
@@ -80,13 +124,18 @@ export function downloadInvoice(file: File) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-export function printInvoice(canvas: HTMLCanvasElement) {
+export function printInvoice(canvas: HTMLCanvasElement, paper: InvoicePaper = "a4") {
   const frame = document.createElement("iframe");
   frame.className = "invoice-print-frame"; frame.title = "طباعة الفاتورة";
   document.body.append(frame);
   const doc = frame.contentDocument;
   if (!doc) { frame.remove(); throw new Error("تعذر فتح الطباعة"); }
-  doc.open(); doc.write('<!doctype html><html><head><title>فاتورة حاسبة الصاغة</title><style>@page{size:A4;margin:0}body{margin:0}img{display:block;width:210mm;height:297mm}</style></head><body></body></html>'); doc.close();
+  const printStyles = paper === "thermal"
+    ? "@page{size:80mm auto;margin:0}html,body{margin:0;width:80mm}img{display:block;width:80mm;height:auto}"
+    : "@page{size:A4;margin:0}html,body{margin:0}img{display:block;width:210mm;height:297mm}";
+  doc.open();
+  doc.write(`<!doctype html><html><head><title>فاتورة حاسبة الصاغة</title><style>${printStyles}</style></head><body></body></html>`);
+  doc.close();
   const image = doc.createElement("img"); image.alt = "الفاتورة";
   image.onload = () => { frame.contentWindow?.focus(); frame.contentWindow?.print(); };
   image.src = canvas.toDataURL("image/png"); doc.body.append(image);

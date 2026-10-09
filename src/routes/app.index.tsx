@@ -310,7 +310,7 @@ function CalculatorPage() {
         <Button
           type="button"
           className="h-12 flex-1 gap-2 font-semibold"
-          disabled={!me?.ok || issuing}
+          disabled={!me?.ok || !me.subscriptionActive || issuing}
           onClick={async () => {
             const values = [manualPrice, weight, craftsmanship, wastage, profitPercent, additionalFees].map((value) => value.trim() === "" ? 0 : Number(value));
             if (values.some((value) => !Number.isFinite(value) || value < 0) || (values[0] ?? 0) <= 0 || (values[1] ?? 0) <= 0 || !Number.isFinite(calc.finalTotal)) {
