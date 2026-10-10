@@ -15,6 +15,13 @@
       "when": 1791419132570,
       "tag": "0001_logs_system",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791590400000,
+      "tag": "0002_scrap_receipts",
+      "breakpoints": true
     }
   ]
 }

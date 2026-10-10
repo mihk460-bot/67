@@ -160,6 +160,42 @@ export type Database = {
         }
         Relationships: []
       }
+      scrap_receipts: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          employee_id: number
+          employee_name: string
+          id: number
+          metal: string
+          receipt: Json
+          serial: string
+          shop_id: number
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          employee_id: number
+          employee_name?: string
+          id?: never
+          metal: string
+          receipt: Json
+          serial: string
+          shop_id: number
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          employee_id?: number
+          employee_name?: string
+          id?: never
+          metal?: string
+          receipt?: Json
+          serial?: string
+          shop_id?: number
+        }
+        Relationships: []
+      },
       settings: {
         Row: {
           key: string
@@ -180,7 +216,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      next_scrap_receipt_number: {
+        Args: { p_receipt_day: string; p_shop_id: number }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

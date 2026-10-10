@@ -1,7 +1,7 @@
 import { ContactLink } from "@/components/ContactLink";
 import { Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, ClipboardList, Headset, LockKeyhole, LogOut, Settings } from "lucide-react";
+import { Bell, ClipboardList, Headset, LockKeyhole, LogOut, Scale, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,6 +77,9 @@ function MerchantLayout() {
                 </span>
               </div>
             ) : null}
+            <a href="/app/scrap-calculator" className="p-2 text-foreground" aria-label="حاسبة الكسر والربط" title="حاسبة الكسر والربط">
+              <Scale className="size-5" />
+            </a>
             <Link to="/app/sales-log" className="p-2 text-foreground" aria-label="سجل المبيعات والعمليات" title="سجل المبيعات والعمليات">
               <ClipboardList className="size-5" />
             </Link>
