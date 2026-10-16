@@ -4,6 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { merchantLogin, merchantRegister, getPublicPrices, type SupportContact } from "@/lib/app.functions";
+import { FREE_TRIAL_DAYS } from "@/lib/subscription";
 import { ContactLink } from "@/components/ContactLink";
 import { loginAs, loadAuthState, routeForRole } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -157,7 +158,7 @@ function LoginPage() {
               />
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              ابدأ بفترة مجانية لمدة 14 يومًا
+              ابدأ بفترة مجانية لمدة أسبوع واحد ({FREE_TRIAL_DAYS} أيام)
             </p>
             {errorMsg ? <p className="text-center text-sm text-destructive">{errorMsg}</p> : null}
             <Button type="submit" disabled={regPending} className="h-12 w-full text-base font-semibold">

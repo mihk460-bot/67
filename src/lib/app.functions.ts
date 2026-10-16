@@ -11,6 +11,7 @@ import {
   type TokenPayload,
 } from "./auth.server";
 import { logActivity } from "./logs.server";
+import { getFreeTrialExpiry } from "./subscription";
 
 // ---------- shared helpers ----------
 
@@ -129,7 +130,7 @@ export const merchantRegister = createServerFn({ method: "POST" })
     if (existing) return fail("اسم المستخدم مستخدم بالفعل");
     const { data: created, error } = await supabaseAdmin
       .from("merchants")
-      .insert({ username, password_hash: hashPassword(data.password) })
+      .insert({ username, password_hash: hashPassword(data.password), expires_at: getFreeTrialExpiry() })
       .select("id")
       .single();
     if (error || !created) return fail("تعذر إنشاء الحساب، حاول مرة أخرى");
