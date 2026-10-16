@@ -74,7 +74,7 @@ function isMetalTargetValid(metal: Metal, target: number): boolean {
   return metal === "gold" ? target === 1000 || target === 875 : target === 999;
 }
 
-const failure = (message: string) => ({ ok: false as const, message });
+const failure = (message: string, code?: string) => ({ ok: false as const, message, ...(code ? { code } : {}) });
 
 export const getScrapReceipts = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({ token: tokenSchema }).parse(data))
@@ -97,6 +97,15 @@ export const getScrapReceipts = createServerFn({ method: "POST" })
     return { ok: true as const, receipts };
   });
 
+function isIdempotencyColumnMissing(error: { code?: string; message?: string; details?: string; hint?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
+  return code === "42703" || code === "PGRST204" ||
+    (message.includes("client_request_id") && (message.includes("column") || message.includes("schema cache") || message.includes("does not exist")));
+}
+
+
 export const issueScrapReceipt = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({
     token: tokenSchema,
@@ -109,10 +118,28 @@ export const issueScrapReceipt = createServerFn({ method: "POST" })
     customerName: z.string().max(200),
     notes: z.string().max(1000),
     timeZone: z.string().trim().min(1).max(100),
+    clientRequestId: z.string().uuid().optional(),
+    expectedMerchantId: z.number().int().positive().optional(),
   }).parse(data))
   .handler(async ({ data }) => {
     const context = await getMerchantContext(data.token);
-    if (!context) return failure("انتهت الجلسة أو اشتراك المحل غير فعال");
+    if (!context) return failure("انتهت الجلسة أو اشتراك المحل غير فعال", "auth_required");
+    if (data.expectedMerchantId !== undefined && data.expectedMerchantId !== context.merchantId) return failure("حساب العملية لا يطابق الجلسة الحالية", "auth_required");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const requestId = data.clientRequestId;
+    if (requestId) {
+      const { data: existing, error: lookupError } = await supabaseAdmin.from("scrap_receipts").select("receipt").eq("shop_id", context.shopId).eq("client_request_id", requestId).maybeSingle();
+      if (lookupError) {
+        if (isIdempotencyColumnMissing(lookupError)) {
+          return failure("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+        }
+        return failure("تعذر التحقق من السند قبل المزامنة", "database_error");
+      }
+      if (existing?.receipt && typeof existing.receipt === "object" && !Array.isArray(existing.receipt)) {
+        const existingReceipt = existing.receipt as unknown as SettlementReceipt;
+        if (String(existingReceipt.shopId) === String(context.shopId)) return { ok: true as const, receipt: existingReceipt };
+      }
+    }
     if (!isMetalTargetValid(data.metal, data.target)) return failure("أساس الصافي غير صالح للمعدن المختار");
 
     let timeZone = data.timeZone;
@@ -134,7 +161,6 @@ export const issueScrapReceipt = createServerFn({ method: "POST" })
 
     const createdAt = new Date();
     const receiptDay = localDateKey(createdAt, timeZone);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: serialNumber, error: serialError } = await supabaseAdmin.rpc("next_scrap_receipt_number", {
       p_shop_id: context.shopId,
       p_receipt_day: receiptDay,
@@ -158,6 +184,7 @@ export const issueScrapReceipt = createServerFn({ method: "POST" })
       currency: DEFAULT_CURRENCY,
       createdAt: createdAt.toISOString(),
       timeZone,
+      ...(requestId ? { offlineRequestId: requestId } : {}),
       received: evaluation.received,
       delivered: evaluation.delivered,
     };
@@ -171,7 +198,23 @@ export const issueScrapReceipt = createServerFn({ method: "POST" })
       metal: data.metal,
       created_at: receipt.createdAt,
       receipt: receipt as unknown as Json,
+      ...(requestId ? { client_request_id: requestId } : {}),
     });
-    if (saveError) return failure("تعذّر حفظ السند في سجل المحل");
+    if (saveError) {
+      if (requestId && saveError?.code === "23505") {
+        const { data: existing, error: lookupError } = await supabaseAdmin.from("scrap_receipts").select("receipt").eq("shop_id", context.shopId).eq("client_request_id", requestId).maybeSingle();
+        if (!lookupError && existing?.receipt && typeof existing.receipt === "object" && !Array.isArray(existing.receipt)) {
+          const existingReceipt = existing.receipt as unknown as SettlementReceipt;
+          if (String(existingReceipt.shopId) === String(context.shopId)) return { ok: true as const, receipt: existingReceipt };
+        }
+        if (lookupError && isIdempotencyColumnMissing(lookupError)) {
+          return failure("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+        }
+      }
+      if (requestId && saveError && isIdempotencyColumnMissing(saveError)) {
+        return failure("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+      }
+      return failure("تعذّر حفظ السند في سجل المحل", "database_error");
+    }
     return { ok: true as const, receipt };
   });

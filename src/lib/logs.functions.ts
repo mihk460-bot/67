@@ -16,21 +16,38 @@ async function merchantFromToken(token: string): Promise<Merchant | null> {
   return data as Merchant;
 }
 
-const err = (message: string) => ({ ok: false as const, message });
+const err = (message: string, code?: string) => ({ ok: false as const, message, ...(code ? { code } : {}) });
 
 export type SaleRow = {
-  id: number; invoiceNumber: string; employeeId: number; employeeName: string; metal: "gold" | "silver";
+  id: number | string; invoiceNumber: string; employeeId: number; employeeName: string; metal: "gold" | "silver";
   karat: string; side: "sell" | "buy"; weight: number; total: number; invoice: Record<string, Json>; createdAt: string;
+  offlineRequestId?: string | null; syncStatus?: "pending" | "blocked";
 };
-const mapSale = (r: { id: number; invoice_number: string | null; employee_id: number; employee_name: string; metal: string; karat: string; side: string; weight: number; total: number; invoice: Json; created_at: string }): SaleRow => ({
+const mapSale = (r: { id: number; invoice_number: string | null; client_request_id?: string | null; employee_id: number; employee_name: string; metal: string; karat: string; side: string; weight: number; total: number; invoice: Json; created_at: string }): SaleRow => ({
   id: r.id, invoiceNumber: r.invoice_number ?? "", employeeId: r.employee_id, employeeName: r.employee_name,
   metal: r.metal === "silver" ? "silver" : "gold", karat: r.karat, side: r.side === "buy" ? "buy" : "sell",
   weight: Number(r.weight), total: Number(r.total), invoice: (r.invoice ?? {}) as Record<string, Json>, createdAt: r.created_at,
+  offlineRequestId: r.client_request_id ?? null,
 });
+
+function isIdempotencyColumnMissing(error: { code?: string; message?: string; details?: string; hint?: string } | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = [error.message, error.details, error.hint].filter(Boolean).join(" ").toLowerCase();
+  return code === "42703" || code === "PGRST204" ||
+    (message.includes("client_request_id") && (message.includes("column") || message.includes("schema cache") || message.includes("does not exist")));
+}
+
+async function findExistingSale(shopId: number, clientRequestId: string) {
+  return supabaseAdmin.from("sales_logs").select("invoice_number, created_at")
+    .eq("shop_id", shopId).eq("client_request_id", clientRequestId).maybeSingle();
+}
 
 export const recordSale = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     token: z.string(),
+    clientRequestId: z.string().uuid().optional(),
+    expectedMerchantId: z.number().int().positive().optional(),
     invoice: z.object({
       metal: z.enum(["gold", "silver"]), karat: z.string().max(10), side: z.enum(["sell", "buy"]),
       weight: z.number().positive().max(1e7), finalTotal: z.number().min(0).max(1e12),
@@ -38,7 +55,8 @@ export const recordSale = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data }) => {
     const m = await merchantFromToken(data.token);
-    if (!m) return err("انتهت الجلسة");
+    if (!m) return err("انتهت الجلسة", "auth_required");
+    if (data.expectedMerchantId !== undefined && data.expectedMerchantId !== m.id) return err("حساب العملية لا يطابق الجلسة الحالية", "auth_required");
     const merchantActive = m.is_active && new Date(m.expires_at).getTime() > Date.now();
     let ownerActive = true;
     if (m.parent_merchant_id !== null) {
@@ -50,17 +68,44 @@ export const recordSale = createServerFn({ method: "POST" })
       ownerActive = !ownerError && !!owner?.is_active && new Date(owner.expires_at).getTime() > Date.now();
     }
     if (!merchantActive || !ownerActive) {
-      return err("انتهى اشتراك المحل؛ تواصل مع الإدارة لتجديده");
+      return err("انتهى اشتراك المحل؛ تواصل مع الإدارة لتجديده", "subscription_inactive");
     }
     const shopId = m.parent_merchant_id ?? m.id;
+    const requestId = data.clientRequestId;
+
+    if (requestId) {
+      const { data: existing, error: lookupError } = await findExistingSale(shopId, requestId);
+      if (lookupError) {
+        if (isIdempotencyColumnMissing(lookupError)) {
+          return err("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+        }
+        return err("تعذر التحقق من الفاتورة قبل المزامنة", "database_error");
+      }
+      if (existing) return { ok: true as const, invoiceNumber: existing.invoice_number ?? "", createdAt: existing.created_at };
+    }
+
+    const storedInvoice = Object.fromEntries(Object.entries(data.invoice).filter(([key]) =>
+      key !== "syncStatus" && key !== "offlineRequestId"));
     const { data: row, error } = await supabaseAdmin.from("sales_logs").insert({
       shop_id: shopId, employee_id: m.id, employee_name: m.username, metal: data.invoice.metal, karat: data.invoice.karat,
-      side: data.invoice.side, weight: data.invoice.weight, total: data.invoice.finalTotal, invoice: data.invoice as Json,
+      side: data.invoice.side, weight: data.invoice.weight, total: data.invoice.finalTotal, invoice: storedInvoice as Json,
+      ...(requestId ? { client_request_id: requestId } : {}),
     }).select("invoice_number, created_at").single();
-    if (error || !row) return err("تعذر حفظ الفاتورة في السجل");
+    if (error || !row) {
+      if (requestId && error?.code === "23505") {
+        const { data: existing, error: lookupError } = await findExistingSale(shopId, requestId);
+        if (!lookupError && existing) return { ok: true as const, invoiceNumber: existing.invoice_number ?? "", createdAt: existing.created_at };
+        if (lookupError && isIdempotencyColumnMissing(lookupError)) {
+          return err("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+        }
+      }
+      if (requestId && error && isIdempotencyColumnMissing(error)) {
+        return err("يلزم تطبيق ترحيل قاعدة البيانات لتفعيل مزامنة العمليات دون اتصال", "offline_migration_required");
+      }
+      return err("تعذر حفظ الفاتورة في السجل", "database_error");
+    }
     return { ok: true as const, invoiceNumber: row.invoice_number ?? "", createdAt: row.created_at };
   });
-
 export const getSalesLog = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ token: z.string() }).parse(d))
   .handler(async ({ data }) => {

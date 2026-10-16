@@ -9,6 +9,8 @@ import { formatDateTime, zoneLabel } from "@/lib/datetime";
 import { InvoiceDialog } from "@/components/InvoiceDialog";
 import type { InvoiceData } from "@/lib/invoice";
 import { getReportWindow, type ReportRange } from "@/lib/sales-report";
+import { getQueuedSales } from "@/lib/offline/outbox";
+import { OFFLINE_OUTBOX_CHANGED_EVENT } from "@/lib/offline/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +25,15 @@ const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 
 
 function SalesLogPage() {
   const state = useRequireRole("merchant");
+  const [queueRevision, setQueueRevision] = useState(0);
+  useEffect(() => {
+    const onQueueChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ merchantId?: number }>).detail;
+      if (detail?.merchantId === state?.merchantId) setQueueRevision((value) => value + 1);
+    };
+    window.addEventListener(OFFLINE_OUTBOX_CHANGED_EVENT, onQueueChanged);
+    return () => window.removeEventListener(OFFLINE_OUTBOX_CHANGED_EVENT, onQueueChanged);
+  }, [state?.merchantId]);
   const [range, setRange] = useState<ReportRange>("daily");
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -42,7 +53,12 @@ function SalesLogPage() {
     refetchInterval: 60_000,
   });
   const report = reportData?.ok ? reportData.summary : undefined;
-  const sales = useMemo(() => data?.ok ? data.sales : [], [data]);
+  const pendingSales = useMemo(() => getQueuedSales(state?.merchantId), [state?.merchantId, queueRevision]);
+  const sales = useMemo(() => {
+    const serverSales = data?.ok ? data.sales : [];
+    const serverRequestIds = new Set(serverSales.map((sale) => sale.offlineRequestId).filter((id): id is string => !!id));
+    return [...pendingSales.filter((sale) => !sale.offlineRequestId || !serverRequestIds.has(sale.offlineRequestId)), ...serverSales];
+  }, [data, pendingSales]);
   const [q, setQ] = useState("");
   const [metal, setMetal] = useState<"all" | "gold" | "silver">("all");
   const [employee, setEmployee] = useState("all");
@@ -90,13 +106,21 @@ function SalesLogPage() {
     },
   ];
 
-  const openInvoice = (s: SaleRow) => setOpen({ ...(s.invoice as unknown as InvoiceData), invoiceNumber: s.invoiceNumber, issuedAt: s.createdAt, issuedBy: s.employeeName });
+  const openInvoice = (s: SaleRow) => {
+    const invoice: InvoiceData = { ...(s.invoice as unknown as InvoiceData), invoiceNumber: s.invoiceNumber, issuedAt: s.createdAt, issuedBy: s.employeeName };
+    if (s.syncStatus && s.offlineRequestId) {
+      invoice.syncStatus = s.syncStatus;
+      invoice.offlineRequestId = s.offlineRequestId;
+    }
+    setOpen(invoice);
+  };
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-16 pt-6">
       <div>
         <h1 className="text-xl font-bold text-foreground">سجل المبيعات والعمليات</h1>
         <p className="text-xs text-muted-foreground" dir="ltr">{zoneLabel()}</p>
+        {pendingSales.length > 0 ? <p className="mt-1 text-xs text-primary">الإحصاءات تعرض السجلات المزامنة فقط؛ الفواتير المؤقتة ظاهرة في القائمة حتى وصولها للخادم.</p> : null}
       </div>
       <section className="space-y-3" aria-label="تصفية التقرير المالي">
         <Tabs value={range} onValueChange={(value) => setRange(value as ReportRange)}>
@@ -139,7 +163,7 @@ function SalesLogPage() {
         <Button variant="secondary" className="self-end" onClick={() => { setQ(""); setMetal("all"); setEmployee("all"); setFrom(""); setTo(""); }}>مسح الفلاتر</Button>
       </div>
 
-      {isLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : data && !data.ok ? (
+      {isLoading ? <div className="flex justify-center py-10"><Loader2 className="animate-spin text-primary" /></div> : data && !data.ok && pendingSales.length === 0 ? (
         <p className="text-center text-destructive">{data.message}</p>
       ) : filtered.length === 0 ? (
         <p className="py-10 text-center text-muted-foreground">لا توجد فواتير مطابقة. الفواتير تُسجَّل عند الضغط على «إصدار الفاتورة» في الحاسبة.</p>
@@ -152,7 +176,7 @@ function SalesLogPage() {
             <tbody>
               {filtered.map((s) => (
                 <tr key={s.id} className="border-t border-border bg-card">
-                  <td className="num p-3 font-semibold text-foreground" dir="ltr">{s.invoiceNumber}</td>
+                  <td className="num p-3 font-semibold text-foreground" dir="ltr">{s.invoiceNumber}{s.syncStatus ? <span className="ms-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">بانتظار المزامنة</span> : null}</td>
                   <td className="p-3 text-foreground">{s.employeeName}</td>
                   <td className="p-3"><span className={s.metal === "gold" ? "text-primary" : "text-muted-foreground"}>{s.metal === "gold" ? "ذهب" : "فضة"}</span> <span className="text-xs text-muted-foreground">({s.side === "sell" ? "بيع" : "شراء"})</span></td>
                   <td className="num p-3">{s.karat}</td>

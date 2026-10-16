@@ -22,6 +22,13 @@
       "when": 1791590400000,
       "tag": "0002_scrap_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792099414543,
+      "tag": "0003_offline_idempotency",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,8 @@ import { getPublicPrices, getMerchantMe } from "@/lib/app.functions";
 import { useRequireRole, readToken } from "@/lib/auth-client";
 import { InvoiceDialog } from "@/components/InvoiceDialog";
 import { recordSale } from "@/lib/logs.functions";
+import { createRequestId, enqueueSaleOperation, isLikelyNetworkError, type OfflineSyncedDetail } from "@/lib/offline/outbox";
+import { OFFLINE_SYNCED_EVENT } from "@/lib/offline/config";
 import type { InvoiceData } from "@/lib/invoice";
 import { resolvePrice, type Side } from "@/lib/prices";
 import { Button } from "@/components/ui/button";
@@ -25,11 +27,25 @@ type SilverKarat = "999" | "925" | "900" | "800";
 type WastageUnit = "grams" | "percent";
 
 function CalculatorPage() {
-  useRequireRole("merchant");
+  const auth = useRequireRole("merchant");
   const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["merchant-me"], queryFn: () => getMerchantMe({ data: { token: readToken() } }) });
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [issuing, setIssuing] = useState(false);
+
+  useEffect(() => {
+    const onSynced = (event: Event) => {
+      const detail = (event as CustomEvent<OfflineSyncedDetail>).detail;
+      if (detail?.kind !== "sale") return;
+      setInvoice((current) => {
+        if (!current || current.offlineRequestId !== detail.requestId) return current;
+        const { syncStatus: _syncStatus, offlineRequestId: _offlineRequestId, ...official } = current;
+        return { ...official, invoiceNumber: detail.invoiceNumber, issuedAt: detail.createdAt };
+      });
+    };
+    window.addEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+  }, []);
 
   const { data: publicPrices, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["public-prices"],
@@ -316,17 +332,51 @@ function CalculatorPage() {
             if (values.some((value) => !Number.isFinite(value) || value < 0) || (values[0] ?? 0) <= 0 || (values[1] ?? 0) <= 0 || !Number.isFinite(calc.finalTotal)) {
               toast.error("أدخل سعراً ووزناً أكبر من صفر وقِيماً صحيحة لبقية الحقول"); return;
             }
+            if (!auth?.merchantId) { toast.error("تعذر تحديد حساب التاجر"); return; }
             const [price = 0, w = 0, craft = 0, wast = 0, profit = 0] = values;
             const draft: InvoiceData = { storeName: me?.ok ? me.storeName : "", metal, karat: currentKarat, side,
               weight: w, price, craftsmanship: craft, wastage: wast, wastageUnit,
               profitPercent: profit, ...calc, issuedAt: new Date().toISOString(), issuedBy: me?.ok ? me.username : "" };
             setIssuing(true);
             try {
-              const res = await recordSale({ data: { token: readToken(), invoice: draft } });
-              if (!res.ok) { toast.error(res.message); return; }
-              setInvoice({ ...draft, invoiceNumber: res.invoiceNumber, issuedAt: res.createdAt });
-            } catch { toast.error("تعذر إصدار الفاتورة، حاول مرة أخرى"); }
-            finally { setIssuing(false); }
+              const token = readToken();
+              if (!token) { toast.error("انتهت الجلسة — سجّل الدخول مرة أخرى"); return; }
+              const requestId = createRequestId();
+              const queueDraft = () => {
+                enqueueSaleOperation(auth.merchantId!, requestId, draft);
+                setInvoice({ ...draft, invoiceNumber: "PEND-" + requestId.slice(0, 8).toUpperCase(), syncStatus: "pending", offlineRequestId: requestId });
+                toast.success("حُفظت الفاتورة مؤقتًا؛ سيصدر رقمها الرسمي بعد المزامنة");
+              };
+              if (!navigator.onLine) {
+                queueDraft();
+                return;
+              }
+              try {
+                const res = await recordSale({ data: { token, clientRequestId: requestId, expectedMerchantId: auth.merchantId, invoice: draft } });
+                if (!res.ok && res.code === "offline_migration_required") {
+                  try {
+                    const legacy = await recordSale({ data: { token, expectedMerchantId: auth.merchantId, invoice: draft } });
+                    if (!legacy.ok) { toast.error(legacy.message); return; }
+                    setInvoice({ ...draft, invoiceNumber: legacy.invoiceNumber, issuedAt: legacy.createdAt });
+                    return;
+                  } catch {
+                    toast.error("لم يصل تأكيد الخادم. تحقّق من سجل المبيعات قبل إعادة الإرسال؛ لم نحفظ نسخة مؤقتة لتجنب التكرار.");
+                    return;
+                  }
+                }
+                if (!res.ok) {
+                  if (res.code === "database_error") { queueDraft(); return; }
+                  toast.error(res.message);
+                  return;
+                }
+                setInvoice({ ...draft, invoiceNumber: res.invoiceNumber, issuedAt: res.createdAt });
+              } catch (error) {
+                if (!isLikelyNetworkError(error)) throw error;
+                queueDraft();
+              }
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "تعذر إصدار الفاتورة، حاول مرة أخرى");
+            } finally { setIssuing(false); }
           }}
         >
           {issuing ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />} إصدار الفاتورة

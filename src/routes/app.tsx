@@ -11,6 +11,8 @@ import { logout, readToken, useRequireRole } from "@/lib/auth-client";
 import { Logo } from "@/components/logo";
 import { WhatsAppSupportButton } from "@/components/WhatsAppSupportButton";
 import { getSubscriptionExpiry } from "@/lib/subscription";
+import { OfflineStatusBar } from "@/components/offline/OfflineStatusBar";
+import { getOutboxStats } from "@/lib/offline/outbox";
 
 export const Route = createFileRoute("/app")({
   component: MerchantLayout,
@@ -106,6 +108,10 @@ function MerchantLayout() {
               className="p-2 text-foreground"
               aria-label="تسجيل الخروج"
               onClick={() => {
+                const stats = getOutboxStats(state?.merchantId);
+                const count = stats.pending + stats.blocked;
+                if (stats.unavailable && !window.confirm("تعذر قراءة الطابور المحلي. قد توجد عمليات معلقة محفوظة على هذا الجهاز. هل تريد تسجيل الخروج رغم ذلك؟")) return;
+                if (count > 0 && !window.confirm("لديك " + String(count) + " عملية غير متزامنة. ستبقى محفوظة على هذا الجهاز ولن تُرسل إلا بعد تسجيل الدخول إلى الحساب نفسه. هل تريد المتابعة؟")) return;
                 logout();
                 navigate({ to: "/", replace: true });
               }}
@@ -126,6 +132,7 @@ function MerchantLayout() {
           </div>
         ) : null}
       </header>
+      <OfflineStatusBar {...(state?.merchantId ? { merchantId: state.merchantId } : {})} />
       <Outlet />
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
         <DialogContent className="bg-background sm:max-w-md">

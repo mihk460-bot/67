@@ -31,7 +31,7 @@ export function InvoiceDialog({ data, onClose }: { data: InvoiceData | null; onC
   };
   return <Dialog open={!!data} onOpenChange={(open) => { if (!open) onClose(); }}>
     <DialogContent className="max-h-[94dvh] max-w-xl overflow-y-auto p-4 pt-10">
-      <DialogHeader><DialogTitle className="text-start">فاتورة {data?.metal === "gold" ? "الذهب" : "الفضة"}</DialogTitle><DialogDescription className="sr-only">معاينة الفاتورة ومشاركتها أو طباعتها</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle className="text-start">فاتورة {data?.metal === "gold" ? "الذهب" : "الفضة"}</DialogTitle><DialogDescription className={data?.syncStatus ? "rounded-md border border-destructive/50 bg-destructive/10 p-3 text-start text-sm font-semibold text-destructive" : "sr-only"}>{data?.syncStatus ? "فاتورة مؤقتة محفوظة على هذا الجهاز؛ لا تصبح رسمية إلا بعد المزامنة وحصولها على رقم من الخادم." : "معاينة الفاتورة ومشاركتها أو طباعتها"}</DialogDescription></DialogHeader>
       {canvas ? <img src={canvas.toDataURL("image/png")} alt={`فاتورة ${data?.storeName || "حاسبة الصاغة"}`} className={`mx-auto w-full ${paper === "thermal" ? "max-w-xs" : "max-w-sm"}`} width={canvas.width} height={canvas.height} /> : <div className="flex min-h-48 items-center justify-center">{failed ? <p className="text-destructive">تعذر إنشاء الفاتورة، أعد المحاولة</p> : <Loader2 className="animate-spin text-primary" />}</div>}
       <div className="flex gap-2" role="group" aria-label="صيغة المشاركة">
         <Button variant={format === "pdf" ? "default" : "secondary"} className="flex-1" aria-pressed={format === "pdf"} onClick={() => setFormat("pdf")}>PDF</Button>

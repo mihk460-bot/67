@@ -118,6 +118,7 @@ export type Database = {
       sales_logs: {
         Row: {
           created_at: string
+          client_request_id: string | null
           employee_id: number
           employee_name: string
           id: number
@@ -132,6 +133,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          client_request_id?: string | null
           employee_id: number
           employee_name?: string
           id?: never
@@ -146,6 +148,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          client_request_id?: string | null
           employee_id?: number
           employee_name?: string
           id?: never
@@ -162,6 +165,7 @@ export type Database = {
       }
       scrap_receipts: {
         Row: {
+          client_request_id: string | null
           created_at: string
           customer_name: string | null
           employee_id: number
@@ -173,6 +177,7 @@ export type Database = {
           shop_id: number
         }
         Insert: {
+          client_request_id?: string | null
           created_at?: string
           customer_name?: string | null
           employee_id: number
@@ -184,6 +189,7 @@ export type Database = {
           shop_id: number
         }
         Update: {
+          client_request_id?: string | null
           created_at?: string
           customer_name?: string | null
           employee_id?: number

@@ -59,6 +59,12 @@ describe("whatsappMessageHref", () => {
     expect(url.searchParams.get("text")).toBe(message);
   });
 
+  it("labels an offline invoice as provisional", () => {
+    const text = buildCustomerInvoiceText({ ...invoice, invoiceNumber: "PEND-12345678", syncStatus: "pending" });
+    expect(text).toContain("مؤقتة");
+    expect(text).toContain("PEND-12345678");
+  });
+
   it("does not invent a WhatsApp destination for an unrelated support link", () => {
     expect(whatsappMessageHref([{ type: "link", value: "https://example.com/help" }], null, "hello")).toBeNull();
   });

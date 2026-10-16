@@ -73,6 +73,10 @@ export function buildReceiptHtml(receipt: SettlementReceipt, options: ReceiptHtm
     row("الزبون", esc(orDash(receipt.customerName))),
   ].join("");
 
+  const pendingNotice = receipt.syncStatus
+    ? "<div class=\"pending-notice\">نسخة محلية مؤقتة — لا تحمل رقمًا رسميًا، ولا تُعد صادرة حتى تكتمل المزامنة والتحقق من الخادم.</div>"
+    : "";
+
   const summary = [
     row("إجمالي الصافي المستلم (كسر)", `<span dir="ltr">${esc(formatMg(receipt.receivedEquivMg))} جم</span>`),
     row("إجمالي الصافي المسلَّم (جديد)", `<span dir="ltr">${esc(formatMg(receipt.deliveredEquivMg))} جم</span>`),
@@ -101,6 +105,7 @@ export function buildReceiptHtml(receipt: SettlementReceipt, options: ReceiptHtm
   h1 { font-size: ${thermal ? "15px" : "20px"}; margin: 2px 0; }
   h2 { font-size: ${thermal ? "13px" : "16px"}; margin: 10px 0 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
   .muted { color: #555; }
+  .pending-notice { border: 2px solid #9b1c1c; color: #7f1d1d; background: #fff1f1; padding: 7px; margin: 8px 0; font-weight: 700; text-align: center; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: right; padding: 3px 2px; vertical-align: top; }
   table.meta th { width: 42%; font-weight: 600; }
@@ -130,6 +135,7 @@ export function buildReceiptHtml(receipt: SettlementReceipt, options: ReceiptHtm
     <div class="muted">${esc(RECEIPT_TITLE)}</div>
   </div>
 
+  ${pendingNotice}
   <table class="meta">${meta}</table>
 
   <h2>استلام كسر / قديم</h2>
@@ -175,6 +181,7 @@ export function buildReceiptText(receipt: SettlementReceipt): string {
     `${RECEIPT_TITLE}`,
     `${orDash(receipt.shopName)}`,
     `رقم السند: ${receipt.serial}`,
+    receipt.syncStatus ? "الحالة: مؤقت — بانتظار المزامنة، وليس رقمًا رسميًا" : "",
     `${formatTimestampWithZone(receipt.createdAt, receipt.timeZone)}`,
     receipt.customerName ? `الزبون: ${receipt.customerName}` : "",
     `${METAL_LABEL[receipt.metal]} — ${unit}`,

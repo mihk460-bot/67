@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeSettlement, evaluateLine, formatMg, parseDecimal } from "@/lib/scrap/calc";
+import { buildReceiptHtml, buildReceiptText } from "@/lib/scrap/receipt-html";
 
 describe("scrap calculator", () => {
   it("parses Arabic digits and decimal separators", () => {
@@ -37,5 +38,17 @@ describe("scrap calculator", () => {
       cashPaid: "10000001",
     });
     expect(result.errors).toContain("المبلغ المدفوع غير صالح أو أكبر من الحد المسموح");
+  });
+
+  it("labels an offline settlement receipt as provisional", () => {
+    const evaluation = computeSettlement({ received: [{ gross: "10", shares: "875" }], delivered: [{ gross: "9", shares: "1000" }], target: 1000, ratePerGram: "10", cashPaid: "50" });
+    const receipt = {
+      ...evaluation.totals, id: "local-123", serial: "PEND-12345678", shopId: "1", shopName: "المحل", employeeName: "موظف",
+      customerName: null, notes: null, metal: "gold" as const, targetShares: 1000, currency: "EGP", createdAt: "2026-10-16T10:00:00.000Z",
+      timeZone: "Africa/Cairo", received: evaluation.received, delivered: evaluation.delivered, syncStatus: "pending" as const,
+    };
+    expect(buildReceiptText(receipt)).toContain("مؤقت");
+    expect(buildReceiptText(receipt)).toContain("PEND-12345678");
+    expect(buildReceiptHtml(receipt, { layout: "a4" })).toContain("pending-notice");
   });
 });

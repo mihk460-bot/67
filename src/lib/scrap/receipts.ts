@@ -16,6 +16,8 @@ export interface SettlementReceipt extends SettlementTotals {
   timeZone: string;
   received: CalcLine[];
   delivered: CalcLine[];
+  offlineRequestId?: string;
+  syncStatus?: "pending" | "blocked";
 }
 
 export interface ScrapLineInput {

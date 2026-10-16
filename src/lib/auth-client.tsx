@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { logLogout } from "@/lib/logs.functions";
+import { clearOfflineSessionCache, dispatchOfflineAuthChanged } from "@/lib/offline/session";
 
 const STORAGE_KEY = "jewelry_auth_state";
 
@@ -48,14 +49,29 @@ export function readToken(): string {
   return loadAuthState().token ?? "";
 }
 
+function merchantOwnerId(state: AuthState): number | undefined {
+  return state.role === "merchant" && Number.isSafeInteger(state.merchantId) && (state.merchantId ?? 0) > 0
+    ? state.merchantId
+    : undefined;
+}
+
 export function loginAs(state: AuthState) {
+  const previous = loadAuthState();
   saveAuthState(state);
+  const previousMerchantId = merchantOwnerId(previous);
+  const merchantId = merchantOwnerId(state);
+  if (previousMerchantId !== merchantId) clearOfflineSessionCache(previousMerchantId);
+  dispatchOfflineAuthChanged({ ...(previousMerchantId ? { previousMerchantId } : {}), ...(merchantId ? { merchantId } : {}), role: state.role });
 }
 
 export function logout() {
-  const token = readToken();
+  const previous = loadAuthState();
+  const token = previous.token ?? "";
   if (token) logLogout({ data: { token } }).catch(() => undefined);
   saveAuthState({ token: null, role: null });
+  const previousMerchantId = merchantOwnerId(previous);
+  clearOfflineSessionCache(previousMerchantId);
+  dispatchOfflineAuthChanged({ ...(previousMerchantId ? { previousMerchantId } : {}), role: null });
 }
 
 export function routeForRole(role: Role | null): string {

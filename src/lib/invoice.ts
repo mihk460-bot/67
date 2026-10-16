@@ -4,6 +4,7 @@ export type InvoiceData = {
   profitPercent: number; baseCost: number; craftCost: number; wastageCost: number; fees: number;
   profitAmount: number; finalTotal: number; issuedAt: string;
   invoiceNumber?: string; issuedBy?: string;
+  offlineRequestId?: string; syncStatus?: "pending" | "blocked";
 };
 import { formatDateTime } from "./datetime";
 export const invoiceFooter = "Powered by 21 Gain Global";
@@ -34,6 +35,7 @@ export function buildCustomerInvoiceText(data: InvoiceData): string {
   const lines = [
     `المحل: ${data.storeName.trim() || "حاسبة الصاغة"}`,
     `الموظف: ${data.issuedBy?.trim() || "—"}`,
+    ...(data.syncStatus ? ["الحالة: مؤقتة — بانتظار المزامنة، ولا تحمل رقمًا رسميًا"] : []),
     ...(data.invoiceNumber ? [`رقم الفاتورة: ${data.invoiceNumber}`] : []),
     `التاريخ والوقت: ${formatDateTime(data.issuedAt)}`,
     ...customerInvoiceRows(data).map(({ label, value }) => `${label}: ${value}`),
@@ -84,6 +86,7 @@ export async function renderInvoice(data: InvoiceData, paper: InvoicePaper = "a4
   text(`الموظف: ${data.issuedBy?.trim() || "—"}`, width / 2, thermal ? 180 : 270, thermal ? 24 : 23, muted, "center");
   text(formatDateTime(data.issuedAt, true), width / 2, thermal ? 218 : 315, thermal ? 18 : 21, muted, "center", false);
   if (data.invoiceNumber) text(`رقم الفاتورة: ${data.invoiceNumber}`, width / 2, thermal ? 252 : 355, thermal ? 19 : 22, muted, "center");
+  if (data.syncStatus) text("نسخة مؤقتة — تنتظر المزامنة والتحقق", width / 2, thermal ? 286 : 405, thermal ? 19 : 22, "#9b1c1c", "center", true);
 
   rows.forEach(({ label, value }, index) => {
     const y = rowStart + index * rowHeight;

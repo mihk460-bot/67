@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Coins, Gem, Scale } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +23,9 @@ import {
 import { GOLD_TARGETS, defaultTargetFor, targetLabel } from "@/lib/scrap/config";
 import { scrapKeys } from "@/lib/scrap/queries";
 import { issueScrapReceipt } from "@/lib/scrap.functions";
-import type { SettlementReceipt } from "@/lib/scrap/receipts";
+import { createRequestId, enqueueScrapOperation, isLikelyNetworkError, type OfflineSyncedDetail } from "@/lib/offline/outbox";
+import type { IssueScrapReceiptInput, SettlementReceipt } from "@/lib/scrap/receipts";
+import { OFFLINE_SYNCED_EVENT } from "@/lib/offline/config";
 
 const sideClass: Record<BalanceSide, string> = {
   customer_owes: "border-primary/50 bg-primary/10",
@@ -84,40 +86,98 @@ export function SettlementTab() {
     resetForm(next);
   }
 
+  function queueLocally(input: IssueScrapReceiptInput, requestId: string) {
+    if (!auth?.merchantId) throw new Error("تعذر تحديد حساب التاجر؛ لم تُحفظ العملية");
+    const profile = queryClient.getQueryData<{ ok?: boolean; storeName?: string; username?: string }>(["merchant-me"]);
+    const queued = enqueueScrapOperation(
+      auth.merchantId,
+      requestId,
+      input,
+      profile?.ok ? profile.storeName ?? "" : "",
+      profile?.ok ? profile.username ?? "" : "",
+    );
+    setIssued(queued.receipt);
+    setDialogOpen(true);
+    resetForm();
+    toast.success("حُفظ السند مؤقتًا على هذا الجهاز؛ سيصدر رقمه الرسمي بعد المزامنة");
+  }
+
+  useEffect(() => {
+    const onSynced = (event: Event) => {
+      const detail = (event as CustomEvent<OfflineSyncedDetail>).detail;
+      if (detail?.kind !== "scrap") return;
+      setIssued((current) => current?.offlineRequestId === detail.requestId ? detail.receipt : current);
+    };
+    window.addEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+    return () => window.removeEventListener(OFFLINE_SYNCED_EVENT, onSynced);
+  }, []);
+
   async function handleIssue() {
     if (evaluation.errors.length > 0) return void toast.error(evaluation.errors[0]);
     if (!evaluation.hasData) return void toast.error("أدخل بنداً واحداً على الأقل");
     const token = readToken();
     if (!token) return void toast.error("انتهت الجلسة — سجّل الدخول مرة أخرى");
+    if (!auth?.merchantId) return void toast.error("تعذر تحديد حساب التاجر");
+    if (customer.length > 200 || notes.length > 1000) return void toast.error("اسم الزبون أو الملاحظات أطول من الحد المسموح");
 
     setSaving(true);
+    const input: IssueScrapReceiptInput = {
+      metal,
+      target,
+      received: received.map(({ gross, shares }) => ({ gross, shares })),
+      delivered: delivered.map(({ gross, shares }) => ({ gross, shares })),
+      ratePerGram: rate,
+      cashPaid,
+      customerName: customer,
+      notes,
+      timeZone: deviceTimeZone(),
+    };
     try {
-      const result = await issueScrapReceipt({
-        data: {
-          token,
-          metal,
-          target,
-          received: received.map(({ gross, shares }) => ({ gross, shares })),
-          delivered: delivered.map(({ gross, shares }) => ({ gross, shares })),
-          ratePerGram: rate,
-          cashPaid,
-          customerName: customer,
-          notes,
-          timeZone: deviceTimeZone(),
-        },
-      });
-      if (!result.ok) {
-        toast.error(result.message);
+      const requestId = createRequestId();
+      if (!navigator.onLine) {
+        queueLocally(input, requestId);
         return;
       }
-      const receipt = result.receipt;
-      await queryClient.invalidateQueries({ queryKey: scrapKeys.receipts(auth?.merchantId) });
-      setIssued(receipt);
-      setDialogOpen(true);
-      resetForm();
-      toast.success("تم إصدار السند " + receipt.serial);
-    } catch {
-      toast.error("تعذّر حفظ السند في سجل المحل");
+
+      try {
+        const result = await issueScrapReceipt({ data: { token, clientRequestId: requestId, expectedMerchantId: auth.merchantId, ...input } });
+        if (!result.ok && result.code === "offline_migration_required") {
+          try {
+            const legacy = await issueScrapReceipt({ data: { token, expectedMerchantId: auth.merchantId, ...input } });
+            if (!legacy.ok) {
+              toast.error(legacy.message);
+              return;
+            }
+            await queryClient.invalidateQueries({ queryKey: scrapKeys.receipts(auth.merchantId) });
+            setIssued(legacy.receipt);
+            setDialogOpen(true);
+            resetForm();
+            toast.success("تم إصدار السند " + legacy.receipt.serial);
+            return;
+          } catch {
+            toast.error("لم يصل تأكيد الخادم. تحقّق من سجل السندات قبل إعادة الإرسال؛ لم نحفظ نسخة مؤقتة لتجنب التكرار.");
+            return;
+          }
+        }
+        if (!result.ok) {
+          if (result.code === "database_error") {
+            queueLocally(input, requestId);
+            return;
+          }
+          toast.error(result.message);
+          return;
+        }
+        await queryClient.invalidateQueries({ queryKey: scrapKeys.receipts(auth.merchantId) });
+        setIssued(result.receipt);
+        setDialogOpen(true);
+        resetForm();
+        toast.success("تم إصدار السند " + result.receipt.serial);
+      } catch (error) {
+        if (!isLikelyNetworkError(error)) throw error;
+        queueLocally(input, requestId);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذّر حفظ السند في سجل المحل");
     } finally {
       setSaving(false);
     }

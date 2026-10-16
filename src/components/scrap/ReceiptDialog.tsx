@@ -27,7 +27,7 @@ export function ReceiptDialog({ receipt, open, onOpenChange, generatePdf, logoUr
   const [layout, setLayout] = useState<ReceiptLayout>("thermal");
 
   const html = useMemo(
-    () => (receipt ? buildReceiptHtml(receipt, { layout, logoUrl }) : ""),
+    () => (receipt ? buildReceiptHtml(receipt, { layout, ...(logoUrl === undefined ? {} : { logoUrl }) }) : ""),
     [receipt, layout, logoUrl],
   );
 
@@ -37,12 +37,12 @@ export function ReceiptDialog({ receipt, open, onOpenChange, generatePdf, logoUr
 
   function printThermal() {
     if (!receipt) return;
-    printHtml(buildReceiptHtml(receipt, { layout: "thermal", logoUrl }), printFailed);
+    printHtml(buildReceiptHtml(receipt, { layout: "thermal", ...(logoUrl === undefined ? {} : { logoUrl }) }), printFailed);
   }
 
   async function savePdf() {
     if (!receipt) return;
-    const a4 = buildReceiptHtml(receipt, { layout: "a4", logoUrl });
+    const a4 = buildReceiptHtml(receipt, { layout: "a4", ...(logoUrl === undefined ? {} : { logoUrl }) });
     if (!generatePdf) {
       toast.success("اختر «حفظ كـ PDF» من نافذة الطباعة");
       printHtml(a4, printFailed);
@@ -93,7 +93,8 @@ export function ReceiptDialog({ receipt, open, onOpenChange, generatePdf, logoUr
           <DialogTitle>
             سند تسوية <span dir="ltr">{receipt.serial}</span>
           </DialogTitle>
-          <DialogDescription>معاينة السند. اختر قالب الطباعة ثم اطبع أو شارك.</DialogDescription>
+          <DialogDescription>{receipt.syncStatus ? "هذا سند مؤقت محفوظ على الجهاز؛ لا يصبح رسميًا حتى تتم المزامنة ويحصل على رقم من الخادم." : "معاينة السند. اختر قالب الطباعة ثم اطبع أو شارك."}</DialogDescription>
+          {receipt.syncStatus ? <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-semibold text-destructive">نسخة مؤقتة — رقمها غير رسمي حتى اكتمال المزامنة. إذا انقطع الاتصال فلا تحذف بيانات المتصفح.</div> : null}
         </DialogHeader>
 
         <div className="flex gap-2">

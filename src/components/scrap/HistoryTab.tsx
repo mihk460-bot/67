@@ -65,7 +65,7 @@ export function HistoryTab() {
                 const cash = cashBalanceLabel(receipt.workmanshipCents - receipt.cashPaidCents, receipt.currency);
                 return (
                   <TableRow key={receipt.id}>
-                    <TableCell className="font-medium tabular-nums" dir="ltr">{receipt.serial}</TableCell>
+                    <TableCell className="font-medium tabular-nums" dir="ltr">{receipt.serial}{receipt.syncStatus ? <span className="ms-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">بانتظار المزامنة</span> : null}</TableCell>
                     <TableCell><Timestamp value={receipt.createdAt} timeZone={receipt.timeZone} /></TableCell>
                     <TableCell>{orDash(receipt.customerName)}</TableCell>
                     <TableCell><MetalBadge metal={receipt.metal} /></TableCell>
